@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/key_feed_identity?&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: root
+    password: 1111
+
+  elasticsearch:
+    uris: http://localhost:9200
+
+jwt:
+  secret: ${jwt_key}
+  expiration_time: 1209600000          # 14일(로컬은 길게)
+  refresh_expiration_time: 1209600000  # 14일
+
+cors:
+  allowed-origins: http://localhost:3000
+
+logging:
+  level:
+    p6spy: info
+    org.hibernate.SQL: off
+    org.hibernate.orm.jdbc.bind: off
