@@ -84,12 +84,30 @@ POST /api/auth/join
 }
 ```
 
+**동작 설명**
+
+- 회원 저장 완료 후 이메일 인증 코드를 자동으로 발송합니다.
+- 메일 발송에 실패하더라도 회원 저장은 유지되며 201을 반환합니다. 이 경우 `POST /api/auth/email-verification/request`로 재요청할 수 있습니다.
+- 동일 이메일이 이미 존재하는 경우:
+  - **인증 미완료 상태** → 기존 계정을 삭제하고 재가입을 허용합니다. 새 인증 코드가 발송됩니다.
+  - **인증 완료 상태** → `409 Conflict`를 반환합니다.
+
 **Response** `201 Created`
 
 ```json
 {
   "status": 201,
   "message": "작성되었습니다.",
+  "data": null
+}
+```
+
+**Error Response** `409 Conflict`
+
+```json
+{
+  "status": 409,
+  "message": "이미 존재하는 사용자입니다.",
   "data": null
 }
 ```

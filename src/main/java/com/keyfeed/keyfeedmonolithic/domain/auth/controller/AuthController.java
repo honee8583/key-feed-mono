@@ -13,12 +13,14 @@ import com.keyfeed.keyfeedmonolithic.global.message.SuccessMessage;
 import com.keyfeed.keyfeedmonolithic.global.response.HttpResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -32,7 +34,13 @@ public class AuthController {
     @PostMapping("/join")
     public ResponseEntity<?> join(@RequestBody JoinRequestDto joinRequestDto) {
         joinService.join(joinRequestDto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(new HttpResponse(HttpStatus.CREATED, SuccessMessage.WRITE_SUCCESS.getMessage(), null));
+        try {
+            joinService.sendJoinEmail(joinRequestDto.getEmail());
+        } catch (Exception e) {
+            log.warn("회원가입 후 인증 메일 발송 실패 - email: {}", joinRequestDto.getEmail());
+    }
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new HttpResponse(HttpStatus.CREATED, SuccessMessage.WRITE_SUCCESS.getMessage(), null));
     }
 
     @PostMapping("/login")

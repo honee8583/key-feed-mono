@@ -31,8 +31,11 @@ public class JoinServiceImpl implements JoinService {
     @Transactional
     public void join(JoinRequestDto joinRequestDto) {
         userRepository.findByEmail(joinRequestDto.getEmail())
-                .ifPresent(u -> {
-                    throw new UserAlreadyExistsException();
+                .ifPresent(existingUser -> {
+                    if (emailVerificationService.isVerified(joinRequestDto.getEmail(), EmailPurpose.SIGNUP)) {
+                        throw new UserAlreadyExistsException();
+                    }
+                    userRepository.delete(existingUser);
                 });
 
         User user = joinRequestDto.toEntity(passwordEncoder.encode(joinRequestDto.getPassword()));
