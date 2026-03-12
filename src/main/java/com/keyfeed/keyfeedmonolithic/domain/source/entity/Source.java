@@ -30,4 +30,12 @@ public class Source extends BaseTimeEntity {
     @Column(name = "last_item_hash")
     private String lastItemHash;
 
+    public void updateLastCrawledAt(LocalDateTime lastCrawledAt) {
+        this.lastCrawledAt = lastCrawledAt;
+    }
+
+    public void updateLastItemHash(String lastItemHash) {
+        this.lastItemHash = lastItemHash;
+    }
+
 }
