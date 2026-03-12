@@ -1,6 +1,7 @@
 package com.keyfeed.keyfeedmonolithic.domain.crawl.service;
 
 import com.keyfeed.keyfeedmonolithic.domain.content.service.ContentService;
+import com.keyfeed.keyfeedmonolithic.domain.content.service.NotificationTriggerService;
 import com.keyfeed.keyfeedmonolithic.domain.crawl.dto.CrawledContentDto;
 import com.keyfeed.keyfeedmonolithic.domain.crawl.dto.FeedItem;
 import com.keyfeed.keyfeedmonolithic.domain.source.entity.Source;
@@ -22,6 +23,7 @@ public class CrawlService {
     private final SourceRepository sourceRepository;
     private final RssFeedParser rssFeedParser;
     private final ContentService contentService;
+    private final NotificationTriggerService notificationTriggerService;
 
     @Transactional
     public void processSource(Source source) {
@@ -69,6 +71,7 @@ public class CrawlService {
                     .build();
 
             contentService.saveContent(contentDto);
+            notificationTriggerService.matchAndSendNotification(contentDto);
         }
 
         // 4. Source 업데이트 최신화

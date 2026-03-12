@@ -1113,6 +1113,93 @@ GET /api/sources/recommended
 
 ---
 
+## 7. 알림 (Notifications)
+
+> Base Path: `/api/notifications` — **인증 필요** (`Authorization: Bearer <token>`)
+
+---
+
+### 7-1. SSE 구독 (실시간 알림 연결)
+
+```
+GET /api/notifications/subscribe
+```
+
+> `Content-Type: text/event-stream`
+
+**Request Headers**
+
+| 헤더 | 필수 | 설명 |
+|------|------|------|
+| `Last-Event-ID` | X | 마지막으로 수신한 알림 ID. 재연결 시 유실된 알림을 재전송 받기 위해 사용 |
+
+**Response** `200 OK` — SSE 스트림
+
+연결 직후 더미 이벤트가 전송됩니다 (503 방지용):
+
+```
+event: notification
+id: 0
+data: connected
+```
+
+이후 새 알림 발생 시:
+
+```
+event: notification
+id: 42
+data: {"id":42,"title":"Spring Boot 3.5 Released","message":"새로운 글이 등록되었습니다."}
+```
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `id` | Long | 알림 ID (SSE `id` 필드와 동일) |
+| `title` | String | 콘텐츠 제목 |
+| `message` | String | 알림 메시지 |
+
+---
+
+### 7-2. 알림 목록 조회
+
+```
+GET /api/notifications
+```
+
+**Query Parameters**
+
+| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
+|---------|------|------|--------|------|
+| `lastId` | Long | X | - | 이전 페이지 마지막 알림 ID (커서) |
+| `size` | int | X | 20 | 페이지 크기 (최대 50) |
+
+**Response** `200 OK`
+
+```json
+{
+  "status": 200,
+  "message": "조회에 성공하였습니다.",
+  "data": {
+    "content": [
+      {
+        "id": 42,
+        "title": "Spring Boot 3.5 Released",
+        "message": "새로운 글이 등록되었습니다."
+      }
+    ],
+    "nextCursorId": 41,
+    "hasNext": true
+  }
+}
+```
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `id` | Long | 알림 ID |
+| `title` | String | 콘텐츠 제목 |
+| `message` | String | 알림 메시지 |
+
+---
+
 ## API 목록 요약
 
 | 메서드 | 경로 | 설명 | 인증 |
@@ -1148,3 +1235,5 @@ GET /api/sources/recommended
 | PATCH | `/api/sources/my/{userSourceId}/receive-feed` | 소스 피드 수신 토글 | O |
 | GET | `/api/sources/recommended` | 추천 소스 목록 조회 | O |
 | GET | `/api/feed` | 개인화 피드 조회 | O |
+| GET | `/api/notifications/subscribe` | SSE 구독 (실시간 알림 연결) | O |
+| GET | `/api/notifications` | 알림 목록 조회 | O |
