@@ -10,8 +10,6 @@ public interface FeedService {
 
     Map<Long, String> fetchUserSourceMapping(Long userId);
 
-    CommonPageResponse<ContentFeedResponseDto> getPersonalizedFeeds(Long userId, Map<Long, String> sourceMapping, Long lastPublishedAt, int size);
-
-    List<ContentFeedResponseDto> getContentsByIds(List<String> contentIds);
+    CommonPageResponse<ContentFeedResponseDto> getPersonalizedFeedsFromMySQL(Long userId, Map<Long, String> sourceMapping, Long lastId, int size, String keyword);
 
 }

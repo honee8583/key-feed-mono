@@ -13,9 +13,8 @@ import com.keyfeed.keyfeedmonolithic.domain.bookmark.exception.FolderLimitExceed
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.repository.BookmarkFolderRepository;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.repository.BookmarkRepository;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.service.BookmarkService;
-import com.keyfeed.keyfeedmonolithic.domain.content.document.ContentDocument;
 import com.keyfeed.keyfeedmonolithic.domain.content.dto.ContentFeedResponseDto;
-import com.keyfeed.keyfeedmonolithic.domain.content.repository.ContentDocumentRepository;
+import com.keyfeed.keyfeedmonolithic.domain.content.repository.ContentRepository;
 import com.keyfeed.keyfeedmonolithic.global.error.exception.EntityAlreadyExistsException;
 import com.keyfeed.keyfeedmonolithic.global.error.exception.EntityNotFoundException;
 import com.keyfeed.keyfeedmonolithic.global.response.CursorPage;
@@ -31,7 +30,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 @Service
 @RequiredArgsConstructor
@@ -41,7 +39,7 @@ public class BookmarkServiceImpl implements BookmarkService {
     private final BookmarkRepository bookmarkRepository;
     private final BookmarkFolderRepository folderRepository;
     private final UserRepository userRepository;
-    private final ContentDocumentRepository contentDocumentRepository;
+    private final ContentRepository contentRepository;
 
     @Value("${app.limits.folder-max-count}")
     private int folderMaxCount;
@@ -193,11 +191,15 @@ public class BookmarkServiceImpl implements BookmarkService {
     }
 
     private Map<String, ContentFeedResponseDto> fetchContentMap(List<Bookmark> bookmarks) {
-        List<String> contentIds = bookmarks.stream()
+        List<Long> contentIds = bookmarks.stream()
                 .map(Bookmark::getContentId)
+                .map(Long::parseLong)
                 .toList();
-        return StreamSupport.stream(contentDocumentRepository.findAllById(contentIds).spliterator(), false)
-                .collect(Collectors.toMap(ContentDocument::getId, ContentFeedResponseDto::from));
+        return contentRepository.findAllById(contentIds).stream()
+                .collect(Collectors.toMap(
+                        content -> String.valueOf(content.getId()),
+                        content -> ContentFeedResponseDto.from(content, Collections.emptyMap())
+                ));
     }
 
     // 북마크 폴더 이름이 중복되는지 검증

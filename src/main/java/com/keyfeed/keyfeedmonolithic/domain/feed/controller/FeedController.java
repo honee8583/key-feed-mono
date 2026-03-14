@@ -27,9 +27,10 @@ public class FeedController {
     @GetMapping
     public ResponseEntity<?> getMyFeeds(@AuthenticationPrincipal Long userId,
                                         @RequestParam(value = "lastId", required = false) Long lastId,
-                                        @RequestParam(value = "size", defaultValue = "10") int size) {
+                                        @RequestParam(value = "size", defaultValue = "10") int size,
+                                        @RequestParam(value = "keyword", required = false) String keyword) {
         Map<Long, String> sourceMapping = feedService.fetchUserSourceMapping(userId);
-        CommonPageResponse<ContentFeedResponseDto> feeds = feedService.getPersonalizedFeeds(userId, sourceMapping, lastId, size);
+        CommonPageResponse<ContentFeedResponseDto> feeds = feedService.getPersonalizedFeedsFromMySQL(userId, sourceMapping, lastId, size, keyword);
         return ResponseEntity.ok()
                 .body(new HttpResponse(HttpStatus.OK, READ_SUCCESS.getMessage(), feeds));
     }
