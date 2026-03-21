@@ -1,6 +1,10 @@
-import { Bookmark } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Bookmark, FolderOpen } from 'lucide-react';
 import type { Post } from '@/types';
 import { usePostStore } from '@/stores/postStore';
+import { useCreateBookmark, useDeleteBookmark } from '@/features/saved/api/bookmarkApi';
+import { useQueryClient } from '@tanstack/react-query';
+import { FolderChangeOverlay } from './FolderChangeOverlay';
 
 interface PostCardProps {
     post: Post;
@@ -8,14 +12,44 @@ interface PostCardProps {
 }
 
 export function PostCard({ post, onClick }: PostCardProps) {
-    const { savedPostIds, readPostIds, toggleSave } = usePostStore();
-
-    const isSaved = savedPostIds.includes(post.id);
+    const { readPostIds } = usePostStore();
     const isRead = readPostIds.includes(post.id);
+
+    const queryClient = useQueryClient();
+    const createBookmark = useCreateBookmark();
+    const deleteBookmark = useDeleteBookmark();
+
+    const [localSaved, setLocalSaved] = useState(post.bookmarkId != null);
+    const [isFolderOverlayOpen, setIsFolderOverlayOpen] = useState(false);
+
+    useEffect(() => {
+        setLocalSaved(post.bookmarkId != null);
+    }, [post.bookmarkId]);
 
     const handleToggleSave = (e: React.MouseEvent) => {
         e.stopPropagation();
-        toggleSave(post.id);
+        
+        if (localSaved) {
+            setLocalSaved(false);
+            if (post.bookmarkId) {
+                deleteBookmark.mutate(post.bookmarkId, {
+                    onSuccess: () => {
+                        queryClient.invalidateQueries({ queryKey: ['feed'] });
+                        queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
+                    },
+                    onError: () => setLocalSaved(true)
+                });
+            }
+        } else {
+            setLocalSaved(true);
+            createBookmark.mutate(String(post.id), {
+                onSuccess: () => {
+                    queryClient.invalidateQueries({ queryKey: ['feed'] });
+                    queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
+                },
+                onError: () => setLocalSaved(false)
+            });
+        }
     };
 
     return (
@@ -46,13 +80,33 @@ export function PostCard({ post, onClick }: PostCardProps) {
                         {post.excerpt}
                     </p>
                 </div>
-                <button
-                    onClick={handleToggleSave}
-                    className={`p-2 rounded-xl transition-all border active:scale-95 ${isSaved ? 'text-indigo-600 bg-white/70 border-indigo-100 shadow-sm' : 'text-slate-200 bg-white/30 border-white/40'}`}
-                >
-                    <Bookmark size={16} fill={isSaved ? "currentColor" : "none"} />
-                </button>
+                <div className="flex flex-col gap-2 shrink-0">
+                    {localSaved && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsFolderOverlayOpen(true);
+                            }}
+                            className="p-2.5 rounded-2xl transition-all border text-slate-500 bg-white border-slate-100 shadow-sm hover:bg-slate-50 active:scale-95"
+                        >
+                            <FolderOpen size={18} strokeWidth={2.5} />
+                        </button>
+                    )}
+                    <button
+                        onClick={handleToggleSave}
+                        className={`p-2.5 rounded-2xl transition-all border active:scale-95 shadow-sm ${localSaved ? 'text-indigo-500 bg-white border-slate-100' : 'text-slate-300 bg-white/50 border-white/40'}`}
+                    >
+                        <Bookmark size={18} strokeWidth={2.5} fill={localSaved ? "currentColor" : "none"} />
+                    </button>
+                </div>
             </div>
+            
+            {isFolderOverlayOpen && (
+                <FolderChangeOverlay 
+                    post={post} 
+                    onClose={() => setIsFolderOverlayOpen(false)} 
+                />
+            )}
         </div>
     );
 }

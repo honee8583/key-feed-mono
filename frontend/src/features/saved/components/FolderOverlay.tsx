@@ -2,22 +2,29 @@ import { useState, useRef, useEffect } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { ArrowLeft, FolderPlus, MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
-import { useFolderStore } from '@/stores/folderStore';
 import { usePostStore } from '@/stores/postStore';
 import { useUiStore } from '@/stores/uiStore';
 import { ICON_MAP, AVAILABLE_COLORS, type IconName, type ColorName } from '@/utils/constants';
 import { FolderActionModal } from './FolderActionModal';
+import { useBookmarkFolders, useCreateBookmarkFolder, useUpdateBookmarkFolder, useDeleteBookmarkFolder } from '../api/bookmarkApi';
 
 export function FolderOverlay() {
-    const { folders, addFolder, updateFolder, deleteFolder } = useFolderStore();
     const { posts } = usePostStore();
     const { isFolderOpen, closeFolderManagement, unmountFolderManagement } = useUiStore();
+    
+    const { data: folderListResponse } = useBookmarkFolders();
+    const folders = folderListResponse || [];
+    
+    const createFolderMutation = useCreateBookmarkFolder();
+    const updateFolderMutation = useUpdateBookmarkFolder();
+    const deleteFolderMutation = useDeleteBookmarkFolder();
     const overlayRef = useRef<HTMLDivElement>(null);
     const { contextSafe } = useGSAP({ scope: overlayRef });
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingFolderData, setEditingFolderData] = useState<{
+        folderId: number;
         name: string;
         icon: IconName;
         color: ColorName;
@@ -26,15 +33,19 @@ export function FolderOverlay() {
     const [menuOpenFolderName, setMenuOpenFolderName] = useState<string | null>(null);
 
     const handleCreateConfirm = (name: string, icon: IconName, color: ColorName) => {
-        addFolder({ name, icon, color });
-        setIsCreateModalOpen(false);
+        createFolderMutation.mutate({ name, icon, color }, {
+            onSuccess: () => setIsCreateModalOpen(false)
+        });
     };
 
     const handleEditConfirm = (newName: string, icon: IconName, color: ColorName) => {
         if (editingFolderData) {
-            updateFolder(editingFolderData.name, { name: newName, icon, color });
-            setIsEditModalOpen(false);
-            setEditingFolderData(null);
+            updateFolderMutation.mutate({ folderId: editingFolderData.folderId, name: newName, icon, color }, {
+                onSuccess: () => {
+                    setIsEditModalOpen(false);
+                    setEditingFolderData(null);
+                }
+            });
         }
     };
 
@@ -82,18 +93,22 @@ export function FolderOverlay() {
 
                 <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pb-10">
                     {folders.map((f) => {
+                        const isHexColor = typeof f.color === 'string' && f.color.startsWith('#');
                         const colorConfig = AVAILABLE_COLORS.find(c => c.name === f.color) || AVAILABLE_COLORS[0];
-                        const ActiveIcon = ICON_MAP[f.icon as keyof typeof ICON_MAP] || ICON_MAP.Folder;
+                        const ActiveIcon = f.icon ? ICON_MAP[f.icon as keyof typeof ICON_MAP] : null;
                         const postCount = posts.filter(p => p.folder === f.name).length;
 
                         return (
                             <div
-                                key={f.name}
+                                key={f.folderId || f.name}
                                 className="relative bg-white border border-slate-100 p-5 rounded-[28px] flex items-center justify-between shadow-sm group hover:border-slate-200 transition-all"
                             >
                                 <div className="flex items-center gap-4">
-                                    <div className={`w-11 h-11 ${colorConfig.light} rounded-2xl flex items-center justify-center ${colorConfig.text} group-hover:scale-105 transition-transform shadow-sm`}>
-                                        <ActiveIcon size={20} />
+                                    <div 
+                                        className={`w-11 h-11 rounded-2xl flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm ${!isHexColor ? ` ${colorConfig.light} ${colorConfig.text}` : ''}`}
+                                        style={isHexColor ? { backgroundColor: `${f.color}20`, color: f.color } : {}}
+                                    >
+                                        {ActiveIcon ? <ActiveIcon size={20} /> : (f.icon ? <span className="text-[20px]">{f.icon}</span> : <ICON_MAP.Folder size={20} />)}
                                     </div>
                                     <div>
                                         <h4 className="text-sm font-bold text-slate-800">{f.name}</h4>
@@ -112,7 +127,7 @@ export function FolderOverlay() {
                                     <div className={`absolute right-12 bg-white border border-slate-100 rounded-2xl shadow-xl z-10 overflow-hidden flex divide-x divide-slate-50 transition-all origin-right ${menuOpenFolderName === f.name ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'}`}>
                                         <button
                                             onClick={() => {
-                                                setEditingFolderData({ name: f.name, icon: f.icon as IconName, color: f.color as ColorName });
+                                                setEditingFolderData({ folderId: f.folderId, name: f.name, icon: f.icon as IconName, color: f.color as ColorName });
                                                 setIsEditModalOpen(true);
                                                 setMenuOpenFolderName(null);
                                             }}
@@ -121,7 +136,7 @@ export function FolderOverlay() {
                                             <Edit2 size={12} /> 수정
                                         </button>
                                         <button
-                                            onClick={() => handleDeleteFolder(f.name)}
+                                            onClick={() => handleDeleteFolder(f.folderId, f.name)}
                                             className="px-4 py-2 text-[10px] font-black uppercase text-rose-500 hover:bg-slate-50 transition-colors flex items-center gap-1.5"
                                         >
                                             <Trash2 size={12} /> 삭제
@@ -154,10 +169,11 @@ export function FolderOverlay() {
         </div>
     );
 
-    function handleDeleteFolder(name: string) {
+    function handleDeleteFolder(folderId: number, name: string) {
         if (confirm(`"${name}" 폴더를 정말 삭제하시겠습니까? 안의 글들은 '전체'로 이동됩니다.`)) {
-            deleteFolder(name);
-            setMenuOpenFolderName(null);
+            deleteFolderMutation.mutate(folderId, {
+                onSuccess: () => setMenuOpenFolderName(null)
+            });
         }
     }
 }

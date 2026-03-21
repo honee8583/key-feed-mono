@@ -7,11 +7,10 @@ import { PostCard } from '@/features/feed/components/PostCard';
 import { PostDetailOverlay } from '@/features/feed/components/PostDetailOverlay';
 import { ICON_MAP, AVAILABLE_COLORS } from '@/utils/constants';
 import type { Post } from '@/types';
-import { useBookmarks } from '../api/bookmarkApi';
+import { useBookmarks, useBookmarkFolders } from '../api/bookmarkApi';
 import type { BookmarkItem } from '../types';
 import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
 
-// Adapter: BookmarkItem -> Post
 function transformBookmarkToPost(item: BookmarkItem): Post {
     return {
         id: item.content.contentId,
@@ -26,16 +25,20 @@ function transformBookmarkToPost(item: BookmarkItem): Post {
         readTime: '',
         content: '', // 원문 링크로 나가는 경우가 많으므로 비워둠
         thumbnail: item.content.thumbnailUrl,
-        folder: item.folderName
+        folder: item.folderName,
+        bookmarkId: item.bookmarkId
     };
 }
 
 export function SavedTab() {
     const { markAsRead } = usePostStore();
-    const { folders, activeFolder, setActiveFolder } = useFolderStore();
+    const { activeFolder, setActiveFolder } = useFolderStore();
     const { openFolderManagement } = useUiStore();
 
     const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+
+    const { data: folderListResponse } = useBookmarkFolders();
+    const fetchedFolders = folderListResponse || [];
 
     // API 연동: 전체 폴더("전체")면 folderId를 undefined로, 아니면 해당 폴더 ID(현재는 Mock UI 구조상 activeFolder가 string이므로 Name 매칭 혹은 전체조회)
     // TODO: 완벽한 폴더 연동 시 activeFolder를 객체나 ID 기반으로 통일 필요. 일단은 전체 조회로 적용
@@ -54,10 +57,11 @@ export function SavedTab() {
 
     const savedPosts = useMemo(() => {
         if (!data) return [];
-        const allItems = data.pages.flatMap(page => page.content);
+        const allItems = data.pages.flatMap(page => page.content || []);
 
         // 프론트엔드 임시 필터: activeFolder 기반 (추후 folderId 기반 쿼리로 개선 가능)
         const filteredItems = allItems.filter(item => {
+            if (!item || !item.content) return false;
             return activeFolder === "전체" || item.folderName === activeFolder;
         });
 
@@ -92,19 +96,38 @@ export function SavedTab() {
 
                 {/* Folder Tabs */}
                 <div className="flex gap-1.5 overflow-x-auto pb-4 no-scrollbar mb-2">
-                    {["전체", ...folders].map((f) => {
-                        const name = typeof f === 'object' ? f.name : f;
-                        const config = typeof f === 'object' ? AVAILABLE_COLORS.find(c => c.name === f.color) : null;
-                        const IconComponent = typeof f === 'object' ? ICON_MAP[f.icon as keyof typeof ICON_MAP] || ICON_MAP.Folder : null;
+                    {[{ name: "전체" } as any, ...fetchedFolders].map((f) => {
+                        const name = f.name;
+                        const isAll = name === "전체";
+                        
+                        const isHexColor = typeof f.color === 'string' && f.color.startsWith('#');
+                        const IconComponent = f.icon ? ICON_MAP[f.icon as keyof typeof ICON_MAP] : null;
+                        const isActive = activeFolder === name;
+                        
+                        let buttonClassName = "px-4 py-1.5 rounded-xl whitespace-nowrap text-[9px] font-black transition-all border ";
+                        let style = {};
+
+                        if (isActive) {
+                            if (isHexColor) {
+                                buttonClassName += "text-white border-transparent shadow-md";
+                                style = { backgroundColor: f.color };
+                            } else {
+                                const config = AVAILABLE_COLORS.find(c => c.name === f.color);
+                                buttonClassName += (config ? `${config.bg} text-white border-transparent shadow-md` : "bg-indigo-600 text-white border-transparent shadow-md");
+                            }
+                        } else {
+                            buttonClassName += "bg-white/40 text-slate-400 border-white/40";
+                        }
 
                         return (
                             <button
                                 key={name}
                                 onClick={() => setActiveFolder(name)}
-                                className={`px-4 py-1.5 rounded-xl whitespace-nowrap text-[9px] font-black transition-all border ${activeFolder === name ? (config ? `${config.bg} text-white border-transparent shadow-md` : 'bg-indigo-600 text-white border-transparent shadow-md') : 'bg-white/40 text-slate-400 border-white/40'}`}
+                                className={buttonClassName}
+                                style={style}
                             >
                                 <div className="flex items-center gap-1.5">
-                                    {IconComponent && <IconComponent size={10} />}
+                                    {!isAll && (IconComponent ? <IconComponent size={10} /> : f.icon ? <span>{f.icon}</span> : <ICON_MAP.Folder size={10} />)}
                                     {name}
                                 </div>
                             </button>

@@ -22,3 +22,10 @@ export interface BookmarkResponse {
     nextCursorId: number | null;
     hasNext: boolean;
 }
+
+export interface BookmarkFolder {
+    folderId: number;
+    name: string;
+    icon: string;
+    color: string;
+}
