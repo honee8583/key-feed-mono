@@ -9,11 +9,11 @@ import com.keyfeed.keyfeedmonolithic.domain.source.repository.SourceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @Service
@@ -25,7 +25,6 @@ public class CrawlService {
     private final ContentService contentService;
     private final NotificationTriggerService notificationTriggerService;
 
-    @Transactional
     public void processSource(Source source) {
         log.info("소스 크롤링 시작: {}", source.getUrl());
 
@@ -43,7 +42,8 @@ public class CrawlService {
         // RSS는 보통 최신순으로 정렬되어 있으므로 위에서부터 검사
         for (FeedItem item : items) {
             // 이전에 수집한 마지막 글(Hash)을 만나면 중단
-            if (java.util.Objects.equals(item.getGuid(), lastHash)) {
+            if (Objects.equals(item.getGuid(), lastHash)) {
+                log.error("guid와 lastHash가 같습니다.");
                 break;
             }
             newItems.add(item);
@@ -76,6 +76,7 @@ public class CrawlService {
 
         // 4. Source 업데이트 최신화
         String newLatestHash = items.get(0).getGuid();  // 가장 최신글의 hash로 업데이트
+        log.info("new Latest Hash: {}", newLatestHash);
         updateSourceStatus(source, newLatestHash);
     }
 

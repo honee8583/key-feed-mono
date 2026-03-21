@@ -43,10 +43,13 @@ public class RssFeedParser {
 
             // 각 게시글 처리
             // Rome 라이브러리는 원본이 RSS 2.0의 <item>이든 Atom 1.0의 <entry>이든 상관없이 SyndEntry라는 표준 객체로 통일해 준다
+            log.info("파싱된 엔트리 수: {}", feed.getEntries().size());
             for (SyndEntry entry : feed.getEntries()) {
-                String guid = (entry.getUri() != null) ? entry.getUri() : entry.getLink();  // ?
+                String guid = (entry.getUri() != null) ? entry.getUri() : entry.getLink();
                 String title = entry.getTitle();
                 String link = entry.getLink();
+
+                log.info("guid: {}, title: {}, link: {}", guid, title, link);
 
                 // RSS의 날짜형식을 LocalDateTime으로 변환
                 LocalDateTime pubDate = LocalDateTime.now();
