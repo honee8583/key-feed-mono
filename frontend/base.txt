@@ -1,0 +1,634 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  Search, Bell, Home, Bookmark, User, Compass, 
+  ExternalLink, Share2, ChevronRight, Zap, 
+  Terminal, Hash, Clock, MoreHorizontal, X, Plus, TrendingUp, Users, Trash2, ArrowLeft, CheckCircle2,
+  LogOut, UserX, Settings, ChevronLeft, Mail, Briefcase, Lock, ShieldCheck, Sparkles, PartyPopper, 
+  FolderPlus, FolderKanban, Folder, Edit2, Star, Heart, Smile, Code, Cpu, Book, Check, SearchX, BellOff
+} from 'lucide-react';
+import { motion, AnimatePresence, useScroll, useSpring } from 'framer-motion';
+
+// 아이콘 맵핑 (문자열 형태의 아이콘 이름을 실제 컴포넌트로 변환)
+const ICON_MAP = {
+  Folder: Folder,
+  Star: Star,
+  Heart: Heart,
+  Briefcase: Briefcase,
+  Clock: Clock,
+  Zap: Zap,
+  Smile: Smile,
+  Code: Code,
+  Cpu: Cpu,
+  Book: Book
+};
+
+const AVAILABLE_ICONS = Object.keys(ICON_MAP);
+
+const AVAILABLE_COLORS = [
+  { name: 'blue', bg: 'bg-blue-500', text: 'text-blue-500', light: 'bg-blue-50', border: 'border-blue-100' },
+  { name: 'purple', bg: 'bg-purple-500', text: 'text-purple-500', light: 'bg-purple-50', border: 'border-purple-100' },
+  { name: 'rose', bg: 'bg-rose-500', text: 'text-rose-500', light: 'bg-rose-50', border: 'border-rose-100' },
+  { name: 'amber', bg: 'bg-amber-500', text: 'text-amber-500', light: 'bg-amber-50', border: 'border-amber-100' },
+  { name: 'emerald', bg: 'bg-emerald-500', text: 'text-emerald-500', light: 'bg-emerald-50', border: 'border-emerald-100' },
+  { name: 'indigo', bg: 'bg-indigo-500', text: 'text-indigo-500', light: 'bg-indigo-50', border: 'border-indigo-100' },
+  { name: 'orange', bg: 'bg-orange-500', text: 'text-orange-500', light: 'bg-orange-50', border: 'border-orange-100' },
+  { name: 'cyan', bg: 'bg-cyan-500', text: 'text-cyan-500', light: 'bg-cyan-50', border: 'border-cyan-100' },
+];
+
+// 초기 포스트 데이터 (썸네일 포함)
+const INITIAL_POSTS = [
+  {
+    id: 1,
+    company: "Toss",
+    logo: "https://toss.im/favicon.ico",
+    title: "Node.js 서비스의 메모리 누수를 찾는 방법",
+    excerpt: "대규모 트래픽을 처리하는 환경에서 발생하는 메모리 누수 문제를 어떻게 진단하고 해결했는지 그 과정을 공유합니다.",
+    date: "2시간 전",
+    category: "Backend",
+    tags: ["Node.js", "Performance"],
+    color: "bg-blue-400/50",
+    readTime: "5 min",
+    content: "이 글에서는 Toss의 거대한 트래픽을 견뎌내는 Node.js 서버들이 어떻게 메모리를 관리하고 있는지 상세히 다룹니다...",
+    folder: "나중에 읽을 글",
+    thumbnail: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=400&q=80"
+  },
+  {
+    id: 2,
+    company: "Kakao",
+    logo: "https://www.kakaocorp.com/favicon.ico",
+    title: "React Server Components가 가져온 변화",
+    excerpt: "RSC를 도입하면서 프론트엔드 아키텍처가 어떻게 변했는지, 그리고 우리가 얻은 이점은 무엇인지 알아봅니다.",
+    date: "5시간 전",
+    category: "Frontend",
+    tags: ["React", "Architecture"],
+    color: "bg-amber-400/50",
+    readTime: "8 min",
+    folder: "프로젝트",
+    thumbnail: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?auto=format&fit=crop&w=400&q=80"
+  },
+  {
+    id: 3,
+    company: "Naver",
+    logo: "https://www.naver.com/favicon.ico",
+    title: "AI Search: 검색 엔진의 미래를 설계하다",
+    excerpt: "LLM을 활용한 검색 기술 고도화 프로젝트의 비하인드 스토리와 기술적 도전을 소개합니다.",
+    date: "어제",
+    category: "AI",
+    tags: ["LLM", "Search"],
+    color: "bg-emerald-400/50",
+    readTime: "12 min",
+    folder: "나중에 읽을 글",
+    thumbnail: "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=400&q=80"
+  },
+  {
+    id: 4,
+    company: "Google",
+    logo: "https://www.google.com/favicon.ico",
+    title: "WebAssembly 성능 극대화 전략",
+    excerpt: "복잡한 연산이 필요한 웹 애플리케이션에서 Wasm을 통해 얻을 수 있는 성능 이득을 확인하세요.",
+    date: "2일 전",
+    category: "Frontend",
+    tags: ["Wasm", "Web"],
+    color: "bg-rose-400/50",
+    readTime: "6 min",
+    folder: "프로젝트",
+    thumbnail: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=400&q=80"
+  }
+];
+
+const MOCK_NOTIFICATIONS = [
+  { id: 1, type: 'post', title: 'Toss Tech', body: 'Node.js 성능 최적화의 모든 것 아티클이 올라왔습니다.', time: '방금 전', unread: true },
+  { id: 2, type: 'system', title: '시스템', body: '새로운 폴더 "나중에 읽을 글"이 성공적으로 생성되었습니다.', time: '1시간 전', unread: false },
+  { id: 3, type: 'trend', title: '트렌드 키워드', body: '실시간 검색어에 "DeepSeek-V3"가 새롭게 진입했습니다.', time: '3시간 전', unread: true },
+  { id: 4, type: 'post', title: 'Naver D2', body: 'FE 개발자를 위한 렌더링 패턴 분석 가이드가 발행되었습니다.', time: '어제', unread: false },
+];
+
+const TRENDING_KEYWORDS = [
+  { rank: 1, keyword: "React Server Components", gap: "up" },
+  { rank: 2, keyword: "DeepSeek-V3", gap: "new" },
+  { rank: 3, keyword: "WebAssembly", gap: "up" },
+  { rank: 4, keyword: "Svelte 5", gap: "down" },
+  { rank: 5, keyword: "Edge Computing", gap: "stable" },
+];
+
+const RECOMMENDED_FEEDS = [
+  { id: 1, name: "Woowahan Tech", desc: "우아한형제들 기술 블로그", subs: "12k", tags: ["MSA", "Java"] },
+  { id: 2, name: "Line Engineering", desc: "글로벌 라인의 엔지니어링 리포트", subs: "8.5k", tags: ["Global", "Infra"] },
+];
+
+const App = () => {
+  const [currentScreen, setCurrentScreen] = useState('signup');
+  const [activeTab, setActiveTab] = useState('home');
+  const [posts, setPosts] = useState(INITIAL_POSTS);
+  const [saved, setSaved] = useState([1, 2, 3, 4]);
+  const [readPosts, setReadPosts] = useState([]); 
+  const [subscribed, setSubscribed] = useState([]);
+  const [selectedPost, setSelectedPost] = useState(null);
+  
+  // 모달 및 검색 상태
+  const [isSearchPageOpen, setIsSearchPageOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false); // 검색 결과 모드 여부
+  const [isNotificationPageOpen, setIsNotificationPageOpen] = useState(false); // 알림 페이지 여부
+  const [isFolderManagementOpen, setIsFolderManagementOpen] = useState(false);
+  const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
+  const [isEditFolderModalOpen, setIsEditFolderModalOpen] = useState(false);
+  const [menuOpenFolderName, setMenuOpenFolderName] = useState(null);
+  
+  // 알림 데이터 상태
+  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFolder, setActiveFolder] = useState("전체");
+  
+  // 폴더 설정 상태
+  const [folders, setFolders] = useState([
+    { name: "나중에 읽을 글", icon: "Clock", color: "blue" },
+    { name: "프로젝트", icon: "Briefcase", color: "purple" },
+    { name: "학습", icon: "Book", color: "emerald" }
+  ]);
+
+  // 입력 필드 전용 상태
+  const [folderInputName, setFolderInputName] = useState("");
+  const [folderInputIcon, setFolderInputIcon] = useState("Folder");
+  const [folderInputColor, setFolderInputColor] = useState("blue");
+  const [editingFolderName, setEditingFolderName] = useState("");
+
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stagger: 100, damping: 30, restDelta: 0.001 });
+
+  // 검색 결과 필터링
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    return posts.filter(post => 
+      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.company.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [searchQuery, posts]);
+
+  const savedPosts = useMemo(() => {
+    return posts.filter(post => {
+      const isSaved = saved.includes(post.id);
+      const matchesFolder = activeFolder === "전체" || post.folder === activeFolder;
+      return isSaved && matchesFolder;
+    });
+  }, [posts, saved, activeFolder]);
+
+  // 안읽은 알림 개수 계산
+  const unreadCount = useMemo(() => notifications.filter(n => n.unread).length, [notifications]);
+
+  // 핸들러 함수들
+  const handleSearchTrigger = (query) => {
+    if (query.trim()) {
+      setSearchQuery(query);
+      setIsSearching(true);
+    }
+  };
+
+  const toggleSave = (e, id) => {
+    if (e) e.stopPropagation();
+    setSaved(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const handlePostClick = (post) => {
+    setSelectedPost(post);
+    if (!readPosts.includes(post.id)) setReadPosts(prev => [...prev, post.id]);
+  };
+
+  const toggleSubscribe = (id) => setSubscribed(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+
+  const handleCreateFolder = () => {
+    if (folderInputName.trim() && !folders.find(f => f.name === folderInputName)) {
+      setFolders(prev => [...prev, { 
+        name: folderInputName, 
+        icon: folderInputIcon, 
+        color: folderInputColor 
+      }]);
+      resetFolderInputs();
+      setIsCreateFolderModalOpen(false);
+    }
+  };
+
+  const handleEditFolder = () => {
+    if (folderInputName.trim()) {
+      const oldName = editingFolderName;
+      const newName = folderInputName;
+      setFolders(prev => prev.map(f => f.name === oldName ? { name: newName, icon: folderInputIcon, color: folderInputColor } : f));
+      setPosts(prev => prev.map(p => p.folder === oldName ? { ...p, folder: newName } : p));
+      if (activeFolder === oldName) setActiveFolder(newName);
+      resetFolderInputs();
+      setIsEditFolderModalOpen(false);
+    }
+  };
+
+  const handleDeleteFolder = (name) => {
+    setFolders(prev => prev.filter(f => f.name !== name));
+    setPosts(prev => prev.map(p => p.folder === name ? { ...p, folder: null } : p));
+    if (activeFolder === name) setActiveFolder("전체");
+    setMenuOpenFolderName(null);
+  };
+
+  const resetFolderInputs = () => {
+    setFolderInputName("");
+    setFolderInputIcon("Folder");
+    setFolderInputColor("blue");
+    setEditingFolderName("");
+  };
+
+  // --- Auth Screens ---
+  const AuthWrapper = ({ children, title, subtitle }) => (
+    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex-1 flex flex-col px-8 pt-20">
+      <div className="mb-10">
+        <div className="w-12 h-12 bg-white/60 backdrop-blur-md rounded-2xl flex items-center justify-center text-slate-800 shadow-sm border border-white/50 mb-6"><Terminal size={24} strokeWidth={2.5} /></div>
+        <h2 className="text-2xl font-black text-slate-900 leading-tight mb-2 uppercase tracking-tighter">{title}</h2>
+        <p className="text-sm text-slate-500 font-medium leading-relaxed">{subtitle}</p>
+      </div>
+      {children}
+    </motion.div>
+  );
+
+  const renderSignup = () => (
+    <AuthWrapper title="Create Account" subtitle="TechStack의 새로운 소식을 가장 먼저 확인하세요.">
+      <div className="space-y-4">
+        <div className="relative group"><Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="email" placeholder="이메일 주소" className="w-full bg-white/40 border border-white/60 rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:ring-4 focus:ring-slate-100 outline-none transition-all" /></div>
+        <div className="relative group"><Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="password" placeholder="비밀번호" className="w-full bg-white/40 border border-white/60 rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:ring-4 focus:ring-slate-100 outline-none transition-all" /></div>
+        <motion.button whileTap={{ scale: 0.98 }} onClick={() => setCurrentScreen('verify')} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-sm uppercase shadow-xl mt-4">인증 코드 전송하기</motion.button>
+        <div className="text-center pt-4"><button onClick={() => setCurrentScreen('login')} className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest">이미 계정이 있으신가요? 로그인</button></div>
+      </div>
+    </AuthWrapper>
+  );
+
+  const renderVerify = () => (
+    <AuthWrapper title="Verify Email" subtitle="입력하신 이메일로 발송된 6자리 인증 코드를 입력해주세요.">
+      <div className="space-y-6">
+        <div className="flex justify-between gap-2">{[1, 2, 3, 4, 5, 6].map((i) => (<input key={i} type="text" maxLength="1" className="w-12 h-14 bg-white/40 border border-white/60 rounded-xl text-center text-xl font-black text-slate-800 focus:ring-4 focus:ring-slate-100 outline-none transition-all" />))}</div>
+        <motion.button whileTap={{ scale: 0.98 }} onClick={() => setCurrentScreen('welcome')} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-sm uppercase shadow-xl">인증 완료</motion.button>
+        <div className="text-center"><button className="text-xs font-bold text-indigo-500 uppercase tracking-widest">코드 다시 보내기</button></div>
+      </div>
+    </AuthWrapper>
+  );
+
+  const renderWelcome = () => (
+    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex-1 flex flex-col items-center justify-center px-8 text-center">
+      <div className="w-24 h-24 bg-white/60 backdrop-blur-md rounded-[40px] border border-white/60 shadow-xl flex items-center justify-center text-indigo-500 mb-8"><PartyPopper size={48} /></div>
+      <h2 className="text-3xl font-black text-slate-900 leading-tight mb-4 uppercase tracking-tighter">Welcome!</h2>
+      <p className="text-sm text-slate-500 font-medium leading-relaxed mb-10">회원가입이 성공적으로 완료되었습니다.<br/>이제 당신만의 기술 인사이트를 쌓아보세요.</p>
+      <motion.button whileTap={{ scale: 0.98 }} onClick={() => setCurrentScreen('login')} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-sm uppercase shadow-xl flex items-center justify-center gap-2">시작하기 <ChevronRight size={18} /></motion.button>
+    </motion.div>
+  );
+
+  const renderLogin = () => (
+    <AuthWrapper title="Login" subtitle="반갑습니다! 다시 로그인을 진행해주세요.">
+      <div className="space-y-4">
+        <div className="relative group"><Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="email" placeholder="이메일 주소" className="w-full bg-white/40 border border-white/60 rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:ring-4 focus:ring-slate-100 outline-none transition-all" /></div>
+        <div className="relative group"><Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} /><input type="password" placeholder="비밀번호" className="w-full bg-white/40 border border-white/60 rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:ring-4 focus:ring-slate-100 outline-none transition-all" /></div>
+        <motion.button whileTap={{ scale: 0.98 }} onClick={() => setCurrentScreen('app')} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-sm uppercase shadow-xl mt-4">로그인</motion.button>
+        <div className="text-center pt-4"><button onClick={() => setCurrentScreen('signup')} className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest">아직 회원이 아니신가요? 가입하기</button></div>
+      </div>
+    </AuthWrapper>
+  );
+
+  // --- Overlay & Modal Components ---
+
+  // 알림 페이지 렌더링
+  const renderNotificationOverlay = () => (
+    <motion.div initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="fixed inset-0 z-[100] bg-white flex justify-center">
+      <div className="w-full max-w-[480px] flex flex-col px-6 pt-10">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <motion.button whileTap={{ scale: 0.9 }} onClick={() => setIsNotificationPageOpen(false)} className="p-2 bg-slate-50 border border-slate-100 rounded-full text-slate-600 shadow-sm"><ArrowLeft size={20} /></motion.button>
+            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">알림</h3>
+          </div>
+          {notifications.length > 0 && (
+            <button onClick={() => setNotifications([])} className="text-[10px] font-black uppercase text-slate-400 hover:text-slate-600 transition-colors">전체 삭제</button>
+          )}
+        </div>
+
+        <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pb-10">
+          {notifications.length > 0 ? (
+            notifications.map((n) => (
+              <div key={n.id} className={`p-5 rounded-3xl border transition-all ${n.unread ? 'bg-indigo-50/30 border-indigo-100/50' : 'bg-white border-slate-100 shadow-sm'}`}>
+                <div className="flex items-start gap-4">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${n.type === 'post' ? 'bg-blue-100 text-blue-600' : n.type === 'system' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                    {n.type === 'post' ? <Briefcase size={18} /> : n.type === 'system' ? <ShieldCheck size={18} /> : <TrendingUp size={18} />}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start mb-1">
+                      <h4 className="text-xs font-black text-slate-800 uppercase tracking-tight">{n.title}</h4>
+                      <span className="text-[9px] font-bold text-slate-400">{n.time}</span>
+                    </div>
+                    <p className="text-[13px] text-slate-600 font-medium leading-snug">{n.body}</p>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="flex flex-col items-center justify-center py-32 opacity-30">
+              <BellOff size={48} className="mb-4" strokeWidth={1.5} />
+              <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 text-center">알림 목록이 비어있습니다</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+
+  const renderSearchOverlay = () => (
+    <motion.div initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="fixed inset-0 z-[100] bg-white flex justify-center">
+      <div className="w-full max-w-[480px] flex flex-col px-6 pt-10">
+        <div className="flex items-center gap-3 mb-6">
+          <motion.button 
+            whileTap={{ scale: 0.9 }} 
+            onClick={() => {
+              if (isSearching) {
+                setIsSearching(false);
+              } else {
+                setIsSearchPageOpen(false);
+                setSearchQuery("");
+              }
+            }} 
+            className="p-2 bg-slate-50 border border-slate-100 rounded-full text-slate-600 shadow-sm"
+          >
+            <ArrowLeft size={20} />
+          </motion.button>
+          <div className="flex-1 relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input 
+              autoFocus 
+              type="text" 
+              value={searchQuery} 
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (isSearching) setIsSearching(false);
+              }} 
+              onKeyDown={(e) => e.key === 'Enter' && handleSearchTrigger(searchQuery)}
+              placeholder="관심 있는 키워드 검색" 
+              className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 pl-11 pr-4 text-sm font-bold focus:ring-4 focus:ring-slate-100 outline-none transition-all placeholder:text-slate-400" 
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => { setSearchQuery(""); setIsSearching(false); }} 
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto no-scrollbar pb-10">
+          <AnimatePresence mode="wait">
+            {!isSearching ? (
+              <motion.div key="suggestions" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <div className="mb-6">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1">최근 검색어</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {["React", "Node.js", "DeepSeek", "Toss"].map(tag => (
+                      <button key={tag} onClick={() => handleSearchTrigger(tag)} className="px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors">{tag}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1">추천 트렌드</h4>
+                  <div className="space-y-2">
+                    {TRENDING_KEYWORDS.slice(0, 3).map((item) => (
+                      <div key={item.keyword} onClick={() => handleSearchTrigger(item.keyword)} className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 rounded-2xl hover:bg-slate-100 transition-all cursor-pointer group">
+                        <span className="text-xs font-bold text-slate-700 group-hover:text-slate-900">{item.keyword}</span>
+                        <ChevronRight size={14} className="text-slate-300" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div key="results" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}>
+                <div className="mb-4 px-1">
+                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    검색 결과 <span className="text-indigo-600 ml-1">{searchResults.length}</span>
+                  </h3>
+                </div>
+                
+                {searchResults.length > 0 ? (
+                  <div className="space-y-4">
+                    {searchResults.map((post) => (
+                      <div key={post.id} onClick={() => handlePostClick(post)} className="bg-white border border-slate-100 p-4 rounded-3xl shadow-sm hover:border-indigo-100 transition-all cursor-pointer group flex gap-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <img src={post.logo} alt="" className="w-4 h-4 object-contain opacity-60" />
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">{post.company}</span>
+                          </div>
+                          <h4 className="text-sm font-bold text-slate-800 leading-tight mb-1 group-hover:text-indigo-600 transition-colors">{post.title}</h4>
+                          <p className="text-[11px] text-slate-500 line-clamp-1 opacity-80">{post.excerpt}</p>
+                        </div>
+                        {post.thumbnail && (
+                          <div className="w-16 h-16 shrink-0 rounded-2xl overflow-hidden shadow-inner bg-slate-50 border border-slate-100">
+                             <img src={post.thumbnail} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-20 opacity-40">
+                    <SearchX size={48} className="mb-4" strokeWidth={1.5} />
+                    <p className="text-[11px] font-black uppercase tracking-widest">검색 결과가 없습니다</p>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </motion.div>
+  );
+
+  const FolderActionModal = ({ type, onConfirm, onClose }) => {
+    const activeColorConfig = AVAILABLE_COLORS.find(c => c.name === folderInputColor) || AVAILABLE_COLORS[0];
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[110] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6" onClick={onClose}>
+        <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} className="w-full max-w-[340px] bg-white rounded-[40px] p-8 shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <h4 className="text-xl font-black text-slate-900 mb-2 uppercase tracking-tighter text-center">{type === 'edit' ? '수정' : '새 폴더'}</h4>
+          <p className="text-[10px] text-slate-400 font-bold text-center mb-6 uppercase tracking-widest">Setup your folder identity</p>
+          <div className="flex justify-center mb-8">
+             <div className={`w-16 h-16 ${activeColorConfig.light} rounded-3xl flex items-center justify-center ${activeColorConfig.text} border-2 ${activeColorConfig.border} shadow-lg shadow-${activeColorConfig.name}-100`}>{React.createElement(ICON_MAP[folderInputIcon] || Folder, { size: 28 })}</div>
+          </div>
+          <div className="space-y-6 overflow-y-auto max-h-[400px] no-scrollbar">
+            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-2 block">Name</label><input autoFocus type="text" value={folderInputName} onChange={(e) => setFolderInputName(e.target.value)} placeholder="폴더 이름을 입력하세요" className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold focus:ring-4 focus:ring-slate-100 outline-none transition-all" /></div>
+            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-2 block">Icon</label><div className="grid grid-cols-5 gap-2">{AVAILABLE_ICONS.map(iconName => (<button key={iconName} onClick={() => setFolderInputIcon(iconName)} className={`aspect-square flex items-center justify-center rounded-xl border transition-all ${folderInputIcon === iconName ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-slate-50 text-slate-400 border-slate-100 hover:bg-white'}`}>{React.createElement(ICON_MAP[iconName], { size: 16 })}</button>))}</div></div>
+            <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-2 block">Color Theme</label><div className="grid grid-cols-4 gap-3">{AVAILABLE_COLORS.map(color => (<button key={color.name} onClick={() => setFolderInputColor(color.name)} className={`h-10 rounded-xl ${color.bg} border-2 flex items-center justify-center transition-all ${folderInputColor === color.name ? 'border-slate-900 scale-105 shadow-md shadow-slate-100' : 'border-transparent'}`}>{folderInputColor === color.name && <Check size={16} className="text-white" />}</button>))}</div></div>
+          </div>
+          <div className="flex gap-2 mt-8"><button onClick={onClose} className="flex-1 py-4 bg-slate-50 text-slate-400 rounded-[20px] text-[11px] font-black uppercase tracking-widest hover:bg-slate-100">취소</button><button onClick={onConfirm} className={`flex-1 py-4 ${activeColorConfig.bg} text-white rounded-[20px] text-[11px] font-black uppercase tracking-widest shadow-xl shadow-${activeColorConfig.name}-100`}>확인</button></div>
+        </motion.div>
+      </motion.div>
+    );
+  };
+
+  const renderFolderOverlay = () => (
+    <motion.div initial={{ y: "100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "100%", opacity: 0 }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="fixed inset-0 z-[100] bg-white flex justify-center">
+      <div className="w-full max-w-[480px] flex flex-col px-6 pt-10">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3"><motion.button whileTap={{ scale: 0.9 }} onClick={() => setIsFolderManagementOpen(false)} className="p-2 bg-slate-50 border border-slate-100 rounded-full text-slate-600 shadow-sm"><ArrowLeft size={20} /></motion.button><h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">폴더 관리</h3></div>
+          <motion.button whileTap={{ scale: 0.9 }} onClick={() => { resetFolderInputs(); setIsCreateFolderModalOpen(true); }} className="p-2.5 bg-slate-900 text-white rounded-xl shadow-lg"><FolderPlus size={20} /></motion.button>
+        </div>
+        <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pb-10">
+          {folders.map((f) => {
+            const colorConfig = AVAILABLE_COLORS.find(c => c.name === f.color) || AVAILABLE_COLORS[0];
+            return (
+              <div key={f.name} className="relative bg-white border border-slate-100 p-5 rounded-[28px] flex items-center justify-between shadow-sm group hover:border-slate-200 transition-all">
+                <div className="flex items-center gap-4"><div className={`w-11 h-11 ${colorConfig.light} rounded-2xl flex items-center justify-center ${colorConfig.text} group-hover:scale-105 transition-transform shadow-sm`}>{React.createElement(ICON_MAP[f.icon] || Folder, { size: 20 })}</div><div><h4 className="text-sm font-bold text-slate-800">{f.name}</h4><p className="text-[10px] text-slate-400 font-bold uppercase">{posts.filter(p => p.folder === f.name).length} Articles</p></div></div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setMenuOpenFolderName(menuOpenFolderName === f.name ? null : f.name)} className="p-2 text-slate-300 hover:text-slate-600 transition-colors"><MoreHorizontal size={18} /></button>
+                  <AnimatePresence>{menuOpenFolderName === f.name && (<motion.div initial={{ opacity: 0, scale: 0.9, x: 10 }} animate={{ opacity: 1, scale: 1, x: 0 }} exit={{ opacity: 0, scale: 0.9, x: 10 }} className="absolute right-12 bg-white border border-slate-100 rounded-2xl shadow-xl z-10 overflow-hidden flex divide-x divide-slate-50"><button onClick={() => { setEditingFolderName(f.name); setFolderInputName(f.name); setFolderInputIcon(f.icon); setFolderInputColor(f.color); setIsEditFolderModalOpen(true); setMenuOpenFolderName(null); }} className="px-4 py-2 text-[10px] font-black uppercase text-indigo-500 hover:bg-slate-50 transition-colors flex items-center gap-1.5"><Edit2 size={12} /> 수정</button><button onClick={() => handleDeleteFolder(f.name)} className="px-4 py-2 text-[10px] font-black uppercase text-rose-500 hover:bg-slate-50 transition-colors flex items-center gap-1.5"><Trash2 size={12} /> 삭제</button></motion.div>)}</AnimatePresence>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <AnimatePresence>{isCreateFolderModalOpen && <FolderActionModal type="create" onConfirm={handleCreateFolder} onClose={() => setIsCreateFolderModalOpen(false)} />}{isEditFolderModalOpen && <FolderActionModal type="edit" onConfirm={handleEditFolder} onClose={() => setIsEditFolderModalOpen(false)} />}</AnimatePresence>
+    </motion.div>
+  );
+
+  // --- Main View Components ---
+  const renderExplore = () => (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="px-5 pt-2 pb-32">
+      <section className="mb-6"><div className="flex items-center gap-2 mb-2 px-1"><TrendingUp size={16} className="text-slate-500" /><h3 className="text-xs font-black text-slate-600 uppercase tracking-tight">실시간 트렌딩</h3></div><div className="bg-white/40 backdrop-blur-xl rounded-2xl border border-white/60 overflow-hidden shadow-sm">{TRENDING_KEYWORDS.map((item, idx) => (<div key={item.keyword} onClick={() => handleSearchTrigger(item.keyword)} className="flex items-center justify-between p-3 hover:bg-white/30 transition-colors cursor-pointer border-b border-white/10 last:border-none"><div className="flex items-center gap-3"><span className={`text-[11px] font-black w-3 ${item.rank <= 3 ? 'text-slate-900' : 'text-slate-300'}`}>{item.rank}</span><span className="text-[13px] font-bold text-slate-700">{item.keyword}</span></div><div className="flex items-center gap-1">{item.gap === 'up' && <span className="text-[8px] font-bold text-emerald-500">▲</span>}{item.gap === 'new' && <span className="px-1.5 py-0.5 bg-blue-100 text-blue-600 text-[7px] font-black rounded-full uppercase">New</span>}{item.gap === 'stable' && <span className="text-[8px] font-bold text-slate-300">-</span>}</div></div>))}</div></section>
+      <section><div className="flex items-center gap-2 mb-2 px-1"><Users size={16} className="text-slate-500" /><h3 className="text-xs font-black text-slate-600 uppercase tracking-tight">추천 블로그</h3></div><div className="space-y-2">{RECOMMENDED_FEEDS.map((feed) => (<div key={feed.id} className="bg-white/40 backdrop-blur-xl p-3.5 rounded-2xl border border-white/60 shadow-sm flex items-center justify-between"><div className="flex items-center gap-3"><div className="w-9 h-9 bg-white/50 rounded-xl flex items-center justify-center border border-white/60 text-slate-400"><Zap size={16} /></div><div><h4 className="text-[13px] font-black text-slate-800 leading-none mb-1">{feed.name}</h4><p className="text-[9px] text-slate-400 font-medium line-clamp-1">{feed.desc}</p></div></div><button onClick={() => toggleSubscribe(feed.id)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${subscribed.includes(feed.id) ? 'bg-slate-200 text-slate-500' : 'bg-slate-900 text-white shadow-sm'}`}>{subscribed.includes(feed.id) ? '구독중' : '구독'}</button></div>))}</div></section>
+    </motion.div>
+  );
+
+  const renderSaved = () => (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="px-5 pt-2 pb-32">
+      <div className="flex items-end justify-between mb-4 px-1"><div><h3 className="text-lg font-black text-slate-800 leading-none uppercase tracking-tighter">북마크</h3><p className="text-[8px] text-slate-400 font-black uppercase tracking-widest mt-1">{savedPosts.length} Items in {activeFolder}</p></div><motion.button whileTap={{ scale: 0.9 }} onClick={() => setIsFolderManagementOpen(true)} className="p-2 bg-white/60 border border-white/60 rounded-xl text-slate-500 hover:text-slate-800 transition-colors shadow-sm"><FolderKanban size={18} /></motion.button></div>
+      <div className="flex gap-1.5 overflow-x-auto pb-4 no-scrollbar mb-2">{["전체", ...folders].map((f) => { const name = typeof f === 'object' ? f.name : f; const config = typeof f === 'object' ? AVAILABLE_COLORS.find(c => c.name === f.color) : null; return (<button key={name} onClick={() => setActiveFolder(name)} className={`px-4 py-1.5 rounded-xl whitespace-nowrap text-[9px] font-black transition-all border ${activeFolder === name ? (config ? `${config.bg} text-white border-transparent shadow-md` : 'bg-indigo-600 text-white border-transparent shadow-md') : 'bg-white/40 text-slate-400 border-white/40'}`}><div className="flex items-center gap-1.5">{typeof f === 'object' && React.createElement(ICON_MAP[f.icon] || Folder, { size: 10 })}{name}</div></button>); })}</div>
+      {savedPosts.length > 0 ? (<div className="space-y-3"><AnimatePresence mode="popLayout">{savedPosts.map((post) => { const folderConfig = folders.find(f => f.name === post.folder); const colorConfig = folderConfig ? AVAILABLE_COLORS.find(c => c.name === folderConfig.color) : null; return (<motion.div key={post.id} layoutId={`post-container-${post.id}`} onClick={() => handlePostClick(post)} className="bg-white/40 backdrop-blur-xl rounded-[28px] border border-white/60 p-4 shadow-sm active:scale-[0.98] transition-all cursor-pointer"><div className="flex items-start gap-3"><div className="flex-1"><div className="flex items-center gap-2 mb-2"><img src={post.logo} alt="" className="w-5 h-5 object-contain p-0.5 bg-white rounded shadow-sm" /><div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-slate-500 uppercase">{post.company}</span>{readPosts.includes(post.id) && <span className="flex items-center gap-0.5 px-1 py-0.5 bg-white/50 text-slate-300 text-[8px] font-black rounded uppercase border border-white/20">읽음</span>}</div></div><h4 className="text-sm font-bold text-slate-800 leading-tight mb-1">{post.title}</h4>{post.folder && (<div className={`inline-flex items-center gap-1 text-[8px] font-black ${colorConfig?.text || 'text-indigo-500'} ${colorConfig?.light || 'bg-indigo-50/50'} px-2 py-0.5 rounded border ${colorConfig?.border || 'border-indigo-100/50'} uppercase`}>{folderConfig && React.createElement(ICON_MAP[folderConfig.icon] || Folder, { size: 8 })}{post.folder}</div>)}</div><button onClick={(e) => toggleSave(e, post.id)} className={`p-2 rounded-xl border border-white/60 shadow-sm transition-colors ${saved.includes(post.id) ? (colorConfig ? `${colorConfig.text} bg-white` : 'text-indigo-600 bg-white') : 'text-slate-200 bg-white/20'}`}><Bookmark size={16} fill={saved.includes(post.id) ? "currentColor" : "none"} /></button></div></motion.div>); })}</AnimatePresence></div>) : (<div className="flex flex-col items-center justify-center py-20 text-center opacity-30"><Bookmark size={32} className="mb-3 text-slate-400" /><p className="text-[10px] font-black uppercase text-slate-500">저장된 콘텐츠가 없습니다</p></div>)}
+    </motion.div>
+  );
+
+  const renderProfile = () => (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="px-5 pt-2 pb-32">
+      <div className="bg-white/40 backdrop-blur-xl rounded-[28px] border border-white/60 p-5 shadow-sm mb-6 flex flex-col items-center text-center"><div className="w-16 h-16 bg-gradient-to-tr from-slate-200 to-slate-100 rounded-2xl border-4 border-white shadow-md flex items-center justify-center mb-3 overflow-hidden"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="avatar" className="w-full h-full object-cover" /></div><h4 className="text-base font-black text-slate-800 mb-0.5">홍길동</h4><p className="text-[11px] text-slate-500 font-medium mb-3 flex items-center gap-1 opacity-70"><Mail size={10} /> developer.hong@example.com</p><div className="flex gap-1.5"><div className="px-3 py-1 bg-white/60 rounded-full border border-white/80 text-[8px] font-black text-slate-600 uppercase">Frontend</div><div className="px-3 py-1 bg-white/60 rounded-full border border-white/80 text-[8px] font-black text-slate-600 uppercase">React</div></div></div>
+      <div className="space-y-2">
+        <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 mb-1">Preferences</h5>
+        <motion.button whileTap={{ scale: 0.98 }} className="w-full bg-white/40 border border-white/60 rounded-xl p-3.5 flex items-center justify-between"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-white/50 rounded-lg flex items-center justify-center text-indigo-500 shadow-sm border border-white/50"><Bell size={16} /></div><span className="text-xs font-bold text-slate-700">알림 설정</span></div><ChevronRight size={14} className="text-slate-300" /></motion.button>
+        <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 mt-4 mb-1">Danger Zone</h5>
+        <motion.button whileTap={{ scale: 0.98 }} onClick={() => setCurrentScreen('login')} className="w-full bg-white/40 border border-white/60 rounded-xl p-3.5 flex items-center gap-3"><div className="w-8 h-8 bg-white/50 rounded-lg flex items-center justify-center text-slate-500 shadow-sm border border-white/50"><LogOut size={16} /></div><span className="text-xs font-bold text-slate-700">로그아웃</span></motion.button>
+        <motion.button whileTap={{ scale: 0.98 }} onClick={() => setCurrentScreen('signup')} className="w-full bg-rose-50/20 border border-rose-100/30 rounded-xl p-3.5 flex items-center gap-3"><div className="w-8 h-8 bg-rose-50/50 rounded-lg flex items-center justify-center text-rose-500 shadow-sm border border-rose-100/30"><UserX size={16} /></div><span className="text-xs font-bold text-rose-600">회원탈퇴</span></motion.button>
+      </div>
+    </motion.div>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-200 flex justify-center font-sans selection:bg-slate-300">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <motion.div animate={{ scale: [1, 1.2, 1], x: [0, 50, 0], y: [0, 30, 0] }} transition={{ duration: 15, repeat: Infinity, ease: "linear" }} className="absolute top-[-15%] left-[-15%] w-[70%] h-[70%] bg-blue-200/20 blur-[120px] rounded-full" />
+        <motion.div animate={{ scale: [1, 1.3, 1], x: [0, -60, 0], y: [0, -40, 0] }} transition={{ duration: 18, repeat: Infinity, ease: "linear" }} className="absolute bottom-[-15%] right-[-15%] w-[70%] h-[70%] bg-slate-100/30 blur-[120px] rounded-full" />
+      </div>
+
+      <div className="w-full max-w-[480px] bg-white/30 backdrop-blur-[60px] min-h-screen shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex flex-col relative overflow-hidden border-x border-white/40">
+        <AnimatePresence mode="wait">
+          {currentScreen === 'signup' && renderSignup()}
+          {currentScreen === 'verify' && renderVerify()}
+          {currentScreen === 'welcome' && renderWelcome()}
+          {currentScreen === 'login' && renderLogin()}
+          {currentScreen === 'app' && (
+            <motion.div key="app" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col overflow-hidden">
+              <motion.div className="fixed top-0 left-0 right-0 h-1 bg-slate-800/20 origin-left z-[60]" style={{ scaleX, maxWidth: 480, margin: '0 auto' }} />
+              
+              <AnimatePresence>{isSearchPageOpen && renderSearchOverlay()}</AnimatePresence>
+              <AnimatePresence>{isNotificationPageOpen && renderNotificationOverlay()}</AnimatePresence>
+              <AnimatePresence>{isFolderManagementOpen && renderFolderOverlay()}</AnimatePresence>
+
+              <header className="sticky top-0 bg-white/40 backdrop-blur-3xl z-40 px-6 pt-4 pb-1 border-b border-white/30">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2"><div className="w-7 h-7 bg-white/60 backdrop-blur-md rounded-lg flex items-center justify-center text-slate-800 shadow-sm border border-white/50"><Terminal size={14} strokeWidth={2.5} /></div><h1 className="text-base font-black tracking-tighter text-slate-900 uppercase">TechStack</h1></div>
+                  <div className="flex items-center gap-1.5">
+                    <motion.button whileTap={{ scale: 0.9 }} onClick={() => { setIsSearchPageOpen(true); setIsSearching(false); }} className="p-2 bg-white/40 backdrop-blur-md rounded-full text-slate-600 border border-white/50 shadow-sm"><Search size={16} /></motion.button>
+                    <motion.button whileTap={{ scale: 0.9 }} onClick={() => setIsNotificationPageOpen(true)} className="relative p-2 bg-white/40 backdrop-blur-md rounded-full text-slate-600 border border-white/50 shadow-sm">
+                      <Bell size={16} />
+                      {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-rose-500 rounded-full border-2 border-white"></span>}
+                    </motion.button>
+                  </div>
+                </div>
+              </header>
+
+              <main className="flex-1 overflow-y-auto no-scrollbar">
+                <AnimatePresence mode="wait">
+                  {activeTab === 'home' ? (
+                    <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="px-5 pt-4 pb-32">
+                      <div className="space-y-4">
+                        {posts.map((post) => (
+                          <motion.div key={post.id} layoutId={`post-container-${post.id}`} onClick={() => handlePostClick(post)} className={`bg-white/40 backdrop-blur-xl rounded-[24px] border border-white/60 p-4 shadow-sm active:scale-[0.98] transition-all cursor-pointer hover:bg-white/60 ${readPosts.includes(post.id) ? 'opacity-70' : ''}`}>
+                            <div className="flex items-start gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2"><img src={post.logo} alt="" className="w-5 h-5 object-contain shadow-sm rounded" /><div className="flex items-center gap-1.5"><span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">{post.company}</span>{readPosts.includes(post.id) && <span className="flex items-center gap-0.5 px-1 py-0.5 bg-white/40 text-slate-300 text-[8px] font-black rounded uppercase border border-white/20">읽음</span>}</div></div>
+                                <h4 className={`text-[14px] font-bold text-slate-800 leading-snug mb-1 ${readPosts.includes(post.id) ? 'text-slate-500' : ''}`}>{post.title}</h4>
+                                <p className="text-[11px] text-slate-500 line-clamp-1 font-medium">{post.excerpt}</p>
+                              </div>
+                              <button onClick={(e) => toggleSave(e, post.id)} className={`p-2 rounded-xl transition-all border ${saved.includes(post.id) ? 'text-indigo-600 bg-white/70 border-indigo-100 shadow-sm' : 'text-slate-200 bg-white/30 border-white/40'}`}><Bookmark size={16} fill={saved.includes(post.id) ? "currentColor" : "none"} /></button>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  ) : activeTab === 'explore' ? (
+                    renderExplore()
+                  ) : activeTab === 'saved' ? (
+                    renderSaved()
+                  ) : activeTab === 'profile' ? (
+                    renderProfile()
+                  ) : null}
+                </AnimatePresence>
+              </main>
+
+              <AnimatePresence>
+                {selectedPost && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/10 backdrop-blur-md z-[110] flex justify-center">
+                    <div className="w-full max-w-[480px] h-full relative" onClick={() => setSelectedPost(null)}>
+                      <motion.div layoutId={`post-container-${selectedPost.id}`} onClick={(e) => e.stopPropagation()} className="absolute bottom-0 w-full h-[88%] bg-white/70 backdrop-blur-[60px] rounded-t-[40px] p-8 shadow-2xl flex flex-col border-t border-white/60 overflow-y-auto no-scrollbar">
+                        <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mb-8 shrink-0" />
+                        <div className="flex items-center justify-between mb-8">
+                          <div className="flex items-center gap-4"><img src={selectedPost.logo} alt="" className="w-9 h-9 object-contain p-1.5 bg-white rounded-xl border border-white/60 shadow-sm" /><div><p className="text-sm font-black text-slate-900 uppercase leading-none mb-1">{selectedPost.company}</p><p className="text-[10px] text-slate-400 font-bold">{selectedPost.date}</p></div></div>
+                          <button onClick={() => setSelectedPost(null)} className="p-2.5 bg-white/60 backdrop-blur-md rounded-full text-slate-400 border border-white/60 shadow-sm"><X size={18} /></button>
+                        </div>
+                        {selectedPost.thumbnail && (
+                          <div className="w-full h-44 mb-6 shrink-0 rounded-3xl overflow-hidden shadow-md">
+                            <img src={selectedPost.thumbnail} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        <h2 className="text-xl font-black text-slate-800 leading-tight mb-5">{selectedPost.title}</h2>
+                        <div className="text-slate-600 text-[15px] leading-relaxed mb-24 font-medium">{selectedPost.content || selectedPost.excerpt}</div>
+                        <div className="mt-auto absolute bottom-8 left-8 right-8 flex gap-3">
+                          <button className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-transform"><ExternalLink size={18} /> 원문 읽기</button>
+                          <button onClick={(e) => toggleSave(e, selectedPost.id)} className={`w-14 h-14 rounded-2xl flex items-center justify-center backdrop-blur-md border ${saved.includes(selectedPost.id) ? 'bg-indigo-50 border-indigo-100 text-indigo-600 shadow-lg' : 'bg-white/60 border-white/80 text-slate-300 shadow-sm'}`}><Bookmark size={22} fill={saved.includes(selectedPost.id) ? "currentColor" : "none"} /></button>
+                        </div>
+                      </motion.div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <nav className="absolute bottom-0 w-full bg-white/30 backdrop-blur-[40px] border-t border-white/20 px-8 pt-3 pb-8 flex justify-between items-center z-[60]">
+                <TabButton active={activeTab === 'home'} onClick={() => setActiveTab('home')} icon={<Home size={18} />} label="Home" />
+                <TabButton active={activeTab === 'explore'} onClick={() => setActiveTab('explore')} icon={<Compass size={18} />} label="Explore" />
+                <TabButton active={activeTab === 'saved'} onClick={() => setActiveTab('saved')} icon={<Bookmark size={18} />} label="Saved" />
+                <TabButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={<User size={18} />} label="Me" />
+              </nav>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+};
+
+const TabButton = ({ active, icon, label, onClick }) => (
+  <button onClick={onClick} className={`flex flex-col items-center gap-1 transition-all relative ${active ? 'text-slate-900' : 'text-slate-400'}`}>
+    <motion.div whileTap={{ y: -3, scale: 1.15 }} className="relative z-10">{icon}</motion.div>
+    <span className={`text-[7px] font-black uppercase tracking-widest ${active ? 'text-slate-900' : 'text-slate-400'}`}>
+      {label}
+    </span>
+    {active && <motion.div layoutId="activeTabGlow" className="absolute -top-1 -left-2 -right-2 -bottom-1 bg-white/70 blur-xl rounded-full -z-10" />}
+  </button>
+);
+
+export default App;
