@@ -66,7 +66,7 @@ export function AppLayout() {
     } = useUiStore();
 
     return (
-        <div className="min-h-screen bg-slate-200 flex justify-center font-sans selection:bg-slate-300">
+        <div className="h-[100dvh] overflow-hidden bg-slate-200 flex justify-center font-sans selection:bg-slate-300">
             <div className="fixed inset-0 overflow-hidden pointer-events-none">
                 <div
                     ref={blob1Ref}
@@ -80,7 +80,7 @@ export function AppLayout() {
 
             <div className="w-full max-w-[1200px] flex flex-col md:flex-row md:justify-center relative z-10 w-full">
                 <DesktopSidebar />
-                <div className="w-full max-w-[480px] md:max-w-[540px] lg:max-w-[600px] bg-white/30 backdrop-blur-[60px] min-h-screen shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex flex-col relative overflow-hidden border-x border-white/40 shrink-0 mx-auto md:mx-0">
+                <div className="w-full max-w-[480px] md:max-w-[540px] lg:max-w-[600px] bg-white/30 backdrop-blur-[60px] h-[100dvh] shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex flex-col relative overflow-hidden border-x border-white/40 shrink-0 mx-auto md:mx-0">
                     <div ref={mainWrapperRef} className="flex-1 flex flex-col overflow-hidden relative opacity-0">
 
                         <div
