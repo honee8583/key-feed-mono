@@ -570,12 +570,12 @@ POST /api/bookmarks
 
 | 필드 | 타입 | 필수 | 설명 |
 |------|------|------|------|
-| `contentId` | String | O | 북마크할 콘텐츠 ID (Elasticsearch Document ID) |
+| `contentId` | String | O | 북마크할 콘텐츠 ID (MySQL Content ID의 문자열 표현) |
 | `folderId` | Long | X | 담을 폴더 ID (미지정 시 미분류) |
 
 ```json
 {
-  "contentId": "es_doc_id_abc123",
+  "contentId": "123",
   "folderId": 1
 }
 ```
@@ -622,7 +622,7 @@ GET /api/bookmarks
         "folderName": "개발 아티클",
         "createdAt": "2026-03-01T10:00:00",
         "content": {
-          "contentId": "es_doc_id_abc123",
+          "contentId": "123",
           "title": "Spring Boot 3.x 마이그레이션 가이드",
           "summary": "Spring Boot 3.x로 업그레이드하는 방법을 알아봅니다.",
           "sourceName": "Spring Blog",
@@ -1082,6 +1082,7 @@ GET /api/sources/recommended
 |---------|------|------|------|
 | `lastId` | Long | X | 이전 페이지 마지막 항목의 `publishedAt` epoch millis (커서) |
 | `size` | Integer | X | 페이지 크기 (기본값: 10) |
+| `keyword` | String | X | 키워드 필터링 |
 
 - **응답**:
 
@@ -1092,7 +1093,7 @@ GET /api/sources/recommended
   "data": {
     "content": [
       {
-        "contentId": "es_document_id",
+        "contentId": "123",
         "title": "Spring Boot 3.5 Released",
         "summary": "Spring Boot 3.5 brings...",
         "sourceName": "Spring Blog",
