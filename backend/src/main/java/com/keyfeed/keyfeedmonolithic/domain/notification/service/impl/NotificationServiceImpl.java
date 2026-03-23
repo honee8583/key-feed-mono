@@ -1,5 +1,7 @@
 package com.keyfeed.keyfeedmonolithic.domain.notification.service.impl;
 
+import com.keyfeed.keyfeedmonolithic.domain.crawl.dto.CrawledContentDto;
+import com.keyfeed.keyfeedmonolithic.domain.keyword.repository.KeywordRepository;
 import com.keyfeed.keyfeedmonolithic.domain.notification.dto.NotificationEventDto;
 import com.keyfeed.keyfeedmonolithic.domain.notification.dto.NotificationResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.notification.entity.Notification;
@@ -16,16 +18,22 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificationServiceImpl implements NotificationService {
 
+    private static final String NOTIFICATION_MESSAGE = "새로운 글이 등록되었습니다.";
+
     private final SseEmitterRepository sseEmitterRepository;
     private final NotificationRepository notificationRepository;
+    private final KeywordRepository keywordRepository;
 
     // 연결 지속 시간 (1시간)
     private static final Long DEFAULT_TIMEOUT = 60L * 1000 * 60;
@@ -143,6 +151,49 @@ public class NotificationServiceImpl implements NotificationService {
                 .nextCursorId(nextCursorId)
                 .hasNext(hasNext)
                 .build();
+    }
+
+    // 알림 트리거: 크롤링된 콘텐츠에 매칭되는 키워드 구독자에게 알림 전송
+    @Override
+    public void matchAndSendNotification(CrawledContentDto content) {
+        Set<String> keywords = extractKeywords(content.getTitle(), content.getSummary());
+        if (keywords.isEmpty()) {
+            return;
+        }
+
+        List<Long> userIds = keywordRepository.findUserIdsByNamesAndSourceId(keywords, content.getSourceId());
+
+        if (userIds.isEmpty()) {
+            return;
+        }
+
+        log.info("알림 대상 유저 {}명 발견. 콘텐츠: {}", userIds.size(), content.getTitle());
+
+        for (Long userId : userIds) {
+            NotificationEventDto event = NotificationEventDto.builder()
+                    .userId(userId)
+                    .title(content.getTitle())
+                    .message(NOTIFICATION_MESSAGE)
+                    .originalUrl(content.getOriginalUrl())
+                    .build();
+            send(event);
+        }
+    }
+
+    private Set<String> extractKeywords(String title, String summary) {
+        if (title == null) {
+            title = "";
+        }
+        if (summary == null) {
+            summary = "";
+        }
+        String text = title + " " + summary;
+
+        String[] tokens = text.replaceAll("[^a-zA-Z0-9가-힣\\s]", "").split("\\s+");
+
+        return Arrays.stream(tokens)
+                .filter(token -> token.length() >= 2)
+                .collect(Collectors.toSet());
     }
 
     // 실제 클라이언트로 데이터 전송
