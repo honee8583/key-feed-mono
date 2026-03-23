@@ -26,7 +26,8 @@ public interface KeywordRepository extends JpaRepository<Keyword, Long> {
             "FROM Keyword k " +
             "JOIN UserSource us ON k.user.id = us.user.id " +
             "WHERE k.name IN :keywords " +
-            "AND us.source.id = :sourceId")
+            "AND us.source.id = :sourceId " +
+            "AND k.isNotificationEnabled = true")
     List<Long> findUserIdsByNamesAndSourceId(@Param("keywords") Set<String> keywords, @Param("sourceId") Long sourceId);
 
     @Modifying
