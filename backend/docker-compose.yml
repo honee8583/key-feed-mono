@@ -1,0 +1,48 @@
+services:
+#  elasticsearch:
+#    image: docker.elastic.co/elasticsearch/elasticsearch:9.1.0
+#    container_name: elasticsearch
+#    environment:
+#      - discovery.type=single-node
+#      - xpack.security.enabled=false
+#      - xpack.security.http.ssl.enabled=false
+#      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+#    ports:
+#      - "9200:9200"
+#  logstash:
+#    image: docker.elastic.co/logstash/logstash:9.1.0
+#    container_name: logstash
+#    volumes:
+#      - ./logs:/usr/share/logstash/logs
+#      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+#    ports:
+#      - "5044:5044"
+#    depends_on:
+#      - elasticsearch
+#
+#  kibana:
+#    image: docker.elastic.co/kibana/kibana:9.1.0 # 무조건 ES, Logstash와 버전을 맞춰야 해요! (9.1.0)
+#    container_name: kibana
+#    ports:
+#      - "5601:5601" # 키바나 포트 번호
+#    environment:
+#      # 키바나가 데이터를 가지고올 주소
+#      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+#    depends_on:
+#      - elasticsearch
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090" # 프로메테우스의 기본 포트번호
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml # 프로메테우스 설정 파일
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000" # 그라파나의 기본 포트 번호
+    depends_on:
+      - prometheus
