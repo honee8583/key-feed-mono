@@ -4,6 +4,8 @@ import com.keyfeed.keyfeedmonolithic.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Builder
 @ToString
@@ -41,8 +43,13 @@ public class User extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     private Role role = Role.USER;
 
+    private LocalDateTime lastNotificationCheckedAt;
+
     public void updatePassword(String encodedPassword) {
         this.password = encodedPassword;
     }
 
+    public void updateLastNotificationCheckedAt(LocalDateTime lastNotificationCheckedAt) {
+        this.lastNotificationCheckedAt = lastNotificationCheckedAt;
+    }
 }

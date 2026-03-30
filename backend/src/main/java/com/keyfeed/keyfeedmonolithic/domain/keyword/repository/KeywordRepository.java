@@ -30,6 +30,40 @@ public interface KeywordRepository extends JpaRepository<Keyword, Long> {
             "AND k.isNotificationEnabled = true")
     List<Long> findUserIdsByNamesAndSourceId(@Param("keywords") Set<String> keywords, @Param("sourceId") Long sourceId);
 
+    @Query(value = """
+    SELECT DISTINCT k.user_id
+    FROM keyword k
+    INNER JOIN user_source us ON k.user_id = us.user_id
+    WHERE k.name IN :keywords
+    AND us.source_id = :sourceId
+    AND k.is_notification_enabled = 1
+    AND us.receive_feed = 1
+    """, nativeQuery = true)
+    List<Long> findUserIdsByNamesAndSourceId(
+            @Param("keywords") Set<String> keywords,
+            @Param("sourceId") Long sourceId,
+            Pageable pageable
+    );
+
+    @Query(value = """
+    SELECT DISTINCT k.user_id
+    FROM keyword k
+    INNER JOIN user_source us ON k.user_id = us.user_id
+    WHERE k.name IN :keywords
+    AND us.source_id = :sourceId
+    AND k.is_notification_enabled = 1
+    AND us.receive_feed = 1
+    AND k.user_id > :lastUserId
+    ORDER BY k.user_id ASC
+    LIMIT :chunkSize
+    """, nativeQuery = true)
+    List<Long> findUserIdsByNamesAndSourceId(
+            @Param("keywords") Set<String> keywords,
+            @Param("sourceId") Long sourceId,
+            @Param("lastUserId") Long lastUserId,
+            @Param("chunkSize") int chunkSize
+    );
+
     @Modifying
     @Query("DELETE FROM Keyword k WHERE k.user.id = :userId")
     void deleteAllByUserId(@Param("userId") Long userId);

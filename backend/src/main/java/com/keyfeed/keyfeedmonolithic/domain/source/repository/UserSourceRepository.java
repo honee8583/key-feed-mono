@@ -33,4 +33,10 @@ public interface UserSourceRepository extends JpaRepository<UserSource, Long> {
     @Query("DELETE FROM UserSource us WHERE us.user.id = :userId")
     void deleteAllByUserId(@Param("userId") Long userId);
 
+    @Query("""
+        SELECT us.user.id FROM UserSource us
+        WHERE us.source.id = :sourceId
+        AND us.receiveFeed = true
+    """)
+    List<Long> findUserIdsBySourceId(@Param("sourceId") Long sourceId);
 }
