@@ -1,7 +1,6 @@
 package com.keyfeed.keyfeedmonolithic.domain.crawl.service;
 
 import com.keyfeed.keyfeedmonolithic.domain.content.service.ContentService;
-import com.keyfeed.keyfeedmonolithic.domain.notification.service.NotificationService;
 import com.keyfeed.keyfeedmonolithic.domain.crawl.dto.CrawledContentDto;
 import com.keyfeed.keyfeedmonolithic.domain.crawl.dto.FeedItem;
 import com.keyfeed.keyfeedmonolithic.domain.source.entity.Source;
@@ -9,11 +8,11 @@ import com.keyfeed.keyfeedmonolithic.domain.source.repository.SourceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StopWatch;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 @Slf4j
 @Service
@@ -23,13 +22,17 @@ public class CrawlService {
     private final SourceRepository sourceRepository;
     private final RssFeedParser rssFeedParser;
     private final ContentService contentService;
-    private final NotificationService notificationService;
 
     public void processSource(Source source) {
+        StopWatch sw = new StopWatch("processSource");
+
         log.info("소스 크롤링 시작: {}", source.getUrl());
 
         // 1. RSS 파싱
+        sw.start("RSS 파싱");
         List<FeedItem> items = rssFeedParser.parse(source.getUrl());
+        sw.stop();
+
         if (items.isEmpty()) {
             updateSourceStatus(source, source.getLastItemHash()); // 시간만 갱신
             return;
@@ -42,8 +45,7 @@ public class CrawlService {
         // RSS는 보통 최신순으로 정렬되어 있으므로 위에서부터 검사
         for (FeedItem item : items) {
             // 이전에 수집한 마지막 글(Hash)을 만나면 중단
-            if (Objects.equals(item.getGuid(), lastHash)) {
-                log.error("guid와 lastHash가 같습니다.");
+            if (item.getGuid().equals(lastHash)) {
                 break;
             }
             newItems.add(item);
@@ -57,8 +59,10 @@ public class CrawlService {
 
         log.info("새 글 {}개 발견: {}", newItems.size(), source.getUrl());
 
-        // 3. 직접 저장 (과거->최신)
+        // 3. 컨텐츠 저장 & 알림 저장
         for (int i = newItems.size() - 1; i >= 0; i--) {
+            sw.start("Content 저장");
+
             FeedItem item = newItems.get(i);
 
             CrawledContentDto contentDto = CrawledContentDto.builder()
@@ -71,13 +75,20 @@ public class CrawlService {
                     .build();
 
             contentService.saveContent(contentDto);
-            notificationService.matchAndSendNotification(contentDto);
+            sw.stop();
+            log.info("content 저장 완료");
+
+//            notificationService.matchAndSendNotification(contentDto);  // TODO 분산 처리 방식으로 변경
         }
 
         // 4. Source 업데이트 최신화
         String newLatestHash = items.get(0).getGuid();  // 가장 최신글의 hash로 업데이트
         log.info("new Latest Hash: {}", newLatestHash);
         updateSourceStatus(source, newLatestHash);
+
+        log.info("[sourceId : {}] 크롤링 완료", source.getUrl());
+
+        System.out.println(sw.prettyPrint());
     }
 
     private void updateSourceStatus(Source source, String newHash) {

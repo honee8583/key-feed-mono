@@ -23,8 +23,8 @@ public class CrawlScheduler {
     private final SourceRepository sourceRepository;
     private final CrawlService crawlService;
 
-    // 10분마다 실행
-    @Scheduled(fixedRate = 600000)
+    // 30분마다 실행
+    @Scheduled(fixedDelay = 1800000)
     public void scheduleCrawling() {
         StopWatch stopWatch = new StopWatch();
 
@@ -46,7 +46,7 @@ public class CrawlScheduler {
                     try {
                         crawlService.processSource(source);
                     } catch (Exception e) {
-                        log.error("소스 크롤링 실패 (ID: {}, URL: {}): {}", source.getId(), source.getUrl(), e.getMessage());
+                        log.error("소스 크롤링 실패 (소스 ID: {}, URL: {}) ERROR : {}", source.getId(), source.getUrl(), e.getMessage());
                     }
                 });
             }
@@ -57,7 +57,7 @@ public class CrawlScheduler {
 
         try {
             // 최대 10분까지(다음 스케쥴링 주기) submit()으로 던져놓은 모든 크롤링 작업들이 끝날때까지 메인 스레드를 정지시키고 기다리는 역할
-            if (!executor.awaitTermination(10, TimeUnit.MINUTES)) {
+            if (!executor.awaitTermination(30, TimeUnit.MINUTES)) {
                 log.warn("크롤링 작업이 시간 내에 완료되지 않아 강제 종료합니다.");
                 executor.shutdownNow(); // 10분을 기다렸는데도 작업이 안끝났을 때 모든 스레드에게 정지 요청
             }
