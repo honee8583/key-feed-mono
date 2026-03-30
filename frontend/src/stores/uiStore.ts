@@ -7,6 +7,8 @@ export interface UiState {
     isNotificationsOpen: boolean;
     isFolderMounted: boolean;
     isFolderOpen: boolean;
+    isUpgradeMounted: boolean;
+    isUpgradeOpen: boolean;
 
     openSearch: () => void;
     closeSearch: () => void;
@@ -19,6 +21,10 @@ export interface UiState {
     openFolderManagement: () => void;
     closeFolderManagement: () => void;
     unmountFolderManagement: () => void;
+
+    openUpgradePlan: () => void;
+    closeUpgradePlan: () => void;
+    unmountUpgradePlan: () => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -28,6 +34,8 @@ export const useUiStore = create<UiState>((set) => ({
     isNotificationsOpen: false,
     isFolderMounted: false,
     isFolderOpen: false,
+    isUpgradeMounted: false,
+    isUpgradeOpen: false,
 
     openSearch: () => set({ isSearchMounted: true, isSearchOpen: true }),
     closeSearch: () => set({ isSearchOpen: false }),
@@ -40,4 +48,8 @@ export const useUiStore = create<UiState>((set) => ({
     openFolderManagement: () => set({ isFolderMounted: true, isFolderOpen: true }),
     closeFolderManagement: () => set({ isFolderOpen: false }),
     unmountFolderManagement: () => set({ isFolderMounted: false }),
+
+    openUpgradePlan: () => set({ isUpgradeMounted: true, isUpgradeOpen: true }),
+    closeUpgradePlan: () => set({ isUpgradeOpen: false }),
+    unmountUpgradePlan: () => set({ isUpgradeMounted: false }),
 }));

@@ -1,16 +1,18 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
-import { ArrowLeft, Search, X, ChevronRight, SearchX } from 'lucide-react';
+import { ArrowLeft, Search, X, ChevronRight, SearchX, Loader2 } from 'lucide-react';
 import { useUiStore } from '@/stores/uiStore';
 import { usePostStore } from '@/stores/postStore';
 import { TRENDING_KEYWORDS } from '@/lib/mock';
 import type { Post } from '@/types';
 import { PostDetailOverlay } from '@/features/feed/components/PostDetailOverlay';
+import { useFeed } from '@/features/feed/api/feedApi';
+import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
 
 export function SearchOverlay() {
     const { isSearchOpen, closeSearch, unmountSearch } = useUiStore();
-    const { posts, markAsRead } = usePostStore();
+    const { markAsRead } = usePostStore();
     const overlayRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const { contextSafe } = useGSAP({ scope: overlayRef });
@@ -19,13 +21,38 @@ export function SearchOverlay() {
     const [isSearching, setIsSearching] = useState(false);
     const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
-    const searchResults = useMemo(() => {
-        if (!searchQuery.trim()) return [];
-        return posts.filter(post =>
-            post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            post.company.toLowerCase().includes(searchQuery.toLowerCase())
+    const {
+        data,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+        status
+    } = useFeed({ keyword: searchQuery, enabled: isSearching && searchQuery.trim().length > 0 });
+
+    const observerTarget = useIntersectionObserver({
+        onIntersect: fetchNextPage,
+        enabled: hasNextPage && !isFetchingNextPage,
+    });
+
+    const searchResults: Post[] = useMemo(() => {
+        if (!data || !isSearching) return [];
+        return data.pages.flatMap((page) =>
+            page.content.map((item) => ({
+                id: item.contentId,
+                company: item.sourceName,
+                logo: item.thumbnailUrl || '/favicon.ico',
+                title: item.title,
+                excerpt: item.summary,
+                date: new Date(item.publishedAt).toLocaleDateString(),
+                category: 'Tech',
+                tags: [],
+                color: 'bg-indigo-500',
+                readTime: '',
+                originalUrl: item.originalUrl,
+                bookmarkId: item.bookmarkId,
+            }))
         );
-    }, [searchQuery, posts]);
+    }, [data, isSearching]);
 
     const handleSearchTrigger = (query: string) => {
         if (query.trim()) {
@@ -159,11 +186,22 @@ export function SearchOverlay() {
                             <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
                                 <div className="mb-4 px-1">
                                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                        검색 결과 <span className="text-indigo-600 ml-1">{searchResults.length}</span>
+                                        검색 결과
                                     </h3>
                                 </div>
 
-                                {searchResults.length > 0 ? (
+                                {status === 'pending' ? (
+                                    <div className="flex justify-center py-20">
+                                        <Loader2 className="w-8 h-8 animate-spin text-slate-300" />
+                                    </div>
+                                ) : status === 'error' ? (
+                                    <div className="flex flex-col items-center justify-center py-20 opacity-40">
+                                        <SearchX size={48} className="mb-4" strokeWidth={1.5} />
+                                        <p className="text-[11px] font-black uppercase tracking-widest">
+                                            검색 중 오류가 발생했습니다
+                                        </p>
+                                    </div>
+                                ) : searchResults.length > 0 ? (
                                     <div className="space-y-4">
                                         {searchResults.map((post) => (
                                             <div
@@ -192,6 +230,9 @@ export function SearchOverlay() {
                                                 )}
                                             </div>
                                         ))}
+                                        <div ref={observerTarget.targetRef} className="h-10 flex items-center justify-center">
+                                            {isFetchingNextPage && <Loader2 className="w-5 h-5 animate-spin text-slate-400" />}
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="flex flex-col items-center justify-center py-20 opacity-40">
