@@ -8,8 +8,10 @@ import java.util.Map;
 
 public interface FeedService {
 
-    Map<Long, String> fetchUserSourceMapping(Long userId);
+    Map<Long, String> fetchUserSourceNameMapping(Long userId);
 
-    CommonPageResponse<ContentFeedResponseDto> getPersonalizedFeedsFromMySQL(Long userId, Map<Long, String> sourceMapping, Long lastId, int size, String keyword);
+    Map<Long, String> fetchUserSourceLogoMapping(Long userId);
+
+    CommonPageResponse<ContentFeedResponseDto> getPersonalizedFeedsFromMySQL(Long userId, Map<Long, String> sourceNameMapping, Map<Long, String> sourceLogoMapping, Long lastId, int size, String keyword);
 
 }

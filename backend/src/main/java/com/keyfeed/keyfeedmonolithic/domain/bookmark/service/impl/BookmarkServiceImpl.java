@@ -198,7 +198,7 @@ public class BookmarkServiceImpl implements BookmarkService {
         return contentRepository.findAllById(contentIds).stream()
                 .collect(Collectors.toMap(
                         content -> String.valueOf(content.getId()),
-                        content -> ContentFeedResponseDto.from(content, Collections.emptyMap())
+                        content -> ContentFeedResponseDto.from(content, Collections.emptyMap(), Collections.emptyMap())
                 ));
     }
 

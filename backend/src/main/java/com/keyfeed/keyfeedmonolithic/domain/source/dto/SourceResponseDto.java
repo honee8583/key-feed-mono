@@ -13,6 +13,7 @@ public class SourceResponseDto {
     private Long userSourceId;
     private String userDefinedName;
     private String url;
+    private String logoUrl;
     private LocalDateTime lastCrawledAt;
     private Boolean receiveFeed;
 
@@ -22,6 +23,7 @@ public class SourceResponseDto {
                 .userSourceId(userSource.getId())
                 .userDefinedName(userSource.getUserDefinedName())
                 .url(userSource.getSource().getUrl())
+                .logoUrl(userSource.getSource().getLogoUrl())
                 .lastCrawledAt(userSource.getSource().getLastCrawledAt())
                 .receiveFeed(userSource.getReceiveFeed())
                 .build();

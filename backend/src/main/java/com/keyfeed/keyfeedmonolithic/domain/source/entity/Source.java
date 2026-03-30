@@ -30,6 +30,13 @@ public class Source extends BaseTimeEntity {
     @Column(name = "last_item_hash")
     private String lastItemHash;
 
+    @Column(name = "logo_url", length = 2048)
+    private String logoUrl;
+
+    public void updateLogoUrl(String logoUrl) {
+        this.logoUrl = logoUrl;
+    }
+
     public void updateLastCrawledAt(LocalDateTime lastCrawledAt) {
         this.lastCrawledAt = lastCrawledAt;
     }

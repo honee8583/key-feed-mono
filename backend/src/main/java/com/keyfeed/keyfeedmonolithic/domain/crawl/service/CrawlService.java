@@ -3,6 +3,7 @@ package com.keyfeed.keyfeedmonolithic.domain.crawl.service;
 import com.keyfeed.keyfeedmonolithic.domain.content.service.ContentService;
 import com.keyfeed.keyfeedmonolithic.domain.crawl.dto.CrawledContentDto;
 import com.keyfeed.keyfeedmonolithic.domain.crawl.dto.FeedItem;
+import com.keyfeed.keyfeedmonolithic.domain.crawl.dto.ParsedFeedResult;
 import com.keyfeed.keyfeedmonolithic.domain.source.entity.Source;
 import com.keyfeed.keyfeedmonolithic.domain.source.repository.SourceRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,8 +31,14 @@ public class CrawlService {
 
         // 1. RSS 파싱
         sw.start("RSS 파싱");
-        List<FeedItem> items = rssFeedParser.parse(source.getUrl());
+        ParsedFeedResult feedResult = rssFeedParser.parse(source.getUrl());
+        List<FeedItem> items = feedResult.getItems();
         sw.stop();
+
+        // 로고 URL이 아직 없으면 RSS 채널 이미지로 업데이트
+        if (source.getLogoUrl() == null && feedResult.getLogoUrl() != null) {
+            source.updateLogoUrl(feedResult.getLogoUrl());
+        }
 
         if (items.isEmpty()) {
             updateSourceStatus(source, source.getLastItemHash()); // 시간만 갱신
