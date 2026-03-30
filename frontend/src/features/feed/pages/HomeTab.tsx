@@ -28,7 +28,7 @@ export function HomeTab() {
         page.content.map((item) => ({
             id: item.contentId, // Using contentId as id
             company: item.sourceName,
-            logo: item.thumbnailUrl || 'https://via.placeholder.com/150', // provide fallback
+            logo: item.thumbnailUrl || '/favicon.ico', // provide fallback
             title: item.title,
             excerpt: item.summary,
             date: item.publishedAt,

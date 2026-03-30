@@ -34,14 +34,16 @@ export function FolderChangeOverlay({ post, onClose }: FolderChangeOverlayProps)
         };
     }, []);
 
-    const handleClose = () => {
+    const handleClose = (e?: React.MouseEvent) => {
+        if (e) e.stopPropagation();
         setIsVisible(false);
         setTimeout(() => {
             onClose();
         }, 300);
     };
 
-    const handleSelect = (folderId: number | null) => {
+    const handleSelect = (e: React.MouseEvent, folderId: number | null) => {
+        e.stopPropagation();
         if (!post.bookmarkId) return;
         
         const handleSuccess = () => {
@@ -83,7 +85,7 @@ export function FolderChangeOverlay({ post, onClose }: FolderChangeOverlayProps)
                 <div className="overflow-y-auto no-scrollbar space-y-3 flex-1 pb-4">
                     {/* 전체 아이템 (미분류) */}
                     <button 
-                        onClick={() => handleSelect(null)}
+                        onClick={(e) => handleSelect(e, null)}
                         className={`w-full text-left rounded-3xl p-4 flex items-center justify-between transition-all border-2 ${!post.folder ? 'bg-blue-500 border-blue-500 text-white shadow-lg shadow-blue-500/30' : 'bg-white border-slate-50 text-slate-800 hover:border-slate-100'}`}
                     >
                         <div className="flex items-center gap-4">
@@ -108,7 +110,7 @@ export function FolderChangeOverlay({ post, onClose }: FolderChangeOverlayProps)
                         return (
                             <button 
                                 key={f.folderId}
-                                onClick={() => handleSelect(f.folderId)}
+                                onClick={(e) => handleSelect(e, f.folderId)}
                                 className={`w-full text-left rounded-3xl p-4 flex items-center justify-between transition-all border-2 ${isSelected ? 'bg-blue-500 border-blue-500 text-white shadow-lg shadow-blue-500/30' : 'bg-white border-slate-50 text-slate-800 hover:border-slate-100'}`}
                             >
                                 <div className="flex items-center gap-4">

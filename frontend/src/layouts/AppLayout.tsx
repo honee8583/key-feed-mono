@@ -5,12 +5,13 @@ import { useGSAP } from '@gsap/react';
 import { Terminal, Search, Bell, Home, Compass, Bookmark, User } from 'lucide-react';
 import { TabButton } from '@/components/ui/TabButton';
 import { useUiStore } from '@/stores/uiStore';
-import { useNotificationStore } from '@/stores/notificationStore';
 
 import { SearchOverlay } from '@/features/search/components/SearchOverlay';
 import { NotificationOverlay } from '@/features/notifications/components/NotificationOverlay';
 import { FolderOverlay } from '@/features/saved/components/FolderOverlay';
+import { UpgradePlanOverlay } from '@/features/profile/pages/UpgradePlanOverlay';
 import { DesktopSidebar } from './DesktopSidebar';
+import { useNotifications, useNotificationSubscription } from '@/features/notifications/api/notificationApi';
 
 export function AppLayout() {
     const navigate = useNavigate();
@@ -54,16 +55,33 @@ export function AppLayout() {
         return () => container?.removeEventListener('scroll', handleScroll);
     }, []);
 
-    const notifications = useNotificationStore(state => state.notifications);
-    const unreadCount = notifications.filter(n => n.unread).length;
+    // Subscribe to SSE notifications
+    useNotificationSubscription();
+
+    const { data: notificationData } = useNotifications();
+    const notifications = notificationData?.pages.flatMap(p => p.content) || [];
+    const unreadCount = notifications.filter(n => !n.isRead).length;
 
     const {
         isSearchMounted,
         isNotificationsMounted,
         isFolderMounted,
+        isUpgradeMounted,
         openSearch,
         openNotifications,
+        closeSearch,
+        closeNotifications,
+        closeFolderManagement,
+        closeUpgradePlan,
     } = useUiStore();
+
+    // 탭 이동(라우트 변경) 시 오버레이 창 닫기
+    useEffect(() => {
+        closeNotifications();
+        closeSearch();
+        closeFolderManagement();
+        closeUpgradePlan();
+    }, [location.pathname, closeNotifications, closeSearch, closeFolderManagement, closeUpgradePlan]);
 
     return (
         <div className="h-[100dvh] overflow-hidden bg-slate-200 flex justify-center font-sans selection:bg-slate-300">
@@ -92,6 +110,7 @@ export function AppLayout() {
                         {isSearchMounted && <SearchOverlay />}
                         {isNotificationsMounted && <NotificationOverlay />}
                         {isFolderMounted && <FolderOverlay />}
+                        {isUpgradeMounted && <UpgradePlanOverlay />}
 
                         <header className="md:hidden sticky top-0 bg-white/40 backdrop-blur-3xl z-40 px-6 pt-5 pb-2 border-b border-white/30">
                             <div className="flex items-center justify-between mb-1">
