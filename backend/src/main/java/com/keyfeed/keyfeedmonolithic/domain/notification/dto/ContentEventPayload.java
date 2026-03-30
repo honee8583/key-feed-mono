@@ -11,5 +11,6 @@ public class ContentEventPayload {
     private Long sourceId;
     private String title;
     private String summary;
+    private String originalUrl;
     private String createdAt;
 }

@@ -46,6 +46,7 @@ public class ContentServiceImpl implements ContentService {
                 "sourceId", content.getSourceId(),
                 "title", content.getTitle(),
                 "summary", content.getSummary(),
+                "originalUrl", content.getOriginalUrl(),
                 "createdAt", content.getCreatedAt().toString()
         ));
         outboxRepository.save(Outbox.create(content.getId(), payload));
