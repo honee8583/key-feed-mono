@@ -19,11 +19,10 @@ export interface Post {
 
 export interface Notification {
     id: number;
-    type: 'post' | 'system' | 'trend';
     title: string;
-    body: string;
-    time: string;
-    unread: boolean;
+    message: string;
+    isRead: boolean;
+    createdAt: string;
 }
 
 export interface FolderConfig {
