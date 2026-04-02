@@ -1,1 +1,3 @@
-spring.application.name=keyfeed-monolithic
+spring:
+  application:
+    name: keyfeed-monolithic
