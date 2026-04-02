@@ -43,6 +43,11 @@ public enum ErrorMessage {
     // bookmark
     BOOKMARK_FOLDER_LIMIT_EXCEEDED("북마크 폴더 생성 한도를 넘었습니다."),
 
+    // payment
+    INVALID_PAYMENT_METHOD("유효하지 않은 결제 수단입니다."),
+    PAYMENT_FAILED("결제 처리에 실패했습니다."),
+    TOSS_UNAUTHORIZED("결제 인증 키가 유효하지 않습니다."),
+
     // URL
     URL_UNKNOWN_HOST("존재하지 않는 주소입니다."),
     URL_CONNECTION_TIMEOUT("연결 시간이 초과되었습니다. 사이트가 응답하지 않습니다."),

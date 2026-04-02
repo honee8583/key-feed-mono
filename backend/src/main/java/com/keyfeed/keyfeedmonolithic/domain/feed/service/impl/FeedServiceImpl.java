@@ -31,7 +31,7 @@ public class FeedServiceImpl implements FeedService {
     private final ContentRepository contentRepository;
 
     @Override
-    public Map<Long, String> fetchUserSourceMapping(Long userId) {
+    public Map<Long, String> fetchUserSourceNameMapping(Long userId) {
         try {
             List<SourceResponseDto> userSources = sourceService.getSourcesByUser(userId);
             if (CollectionUtils.isEmpty(userSources)) {
@@ -52,7 +52,28 @@ public class FeedServiceImpl implements FeedService {
     }
 
     @Override
-    public CommonPageResponse<ContentFeedResponseDto> getPersonalizedFeedsFromMySQL(Long userId, Map<Long, String> sourceMapping, Long lastId, int size, String keyword) {
+    public Map<Long, String> fetchUserSourceLogoMapping(Long userId) {
+        try {
+            List<SourceResponseDto> userSources = sourceService.getSourcesByUser(userId);
+            if (CollectionUtils.isEmpty(userSources)) {
+                return Collections.emptyMap();
+            }
+
+            return userSources.stream()
+                    .filter(source -> StringUtils.hasText(source.getLogoUrl()))
+                    .collect(Collectors.toMap(
+                            SourceResponseDto::getSourceId,
+                            SourceResponseDto::getLogoUrl,
+                            (existing, replacement) -> existing
+                    ));
+        } catch (Exception e) {
+            log.error("소스 로고 조회 중 예상치 못한 오류 발생. userId: {}", userId, e);
+            throw new InternalServerProcessingException(ErrorMessage.INTERNAL_SERVER_ERROR.getMessage());
+        }
+    }
+
+    @Override
+    public CommonPageResponse<ContentFeedResponseDto> getPersonalizedFeedsFromMySQL(Long userId, Map<Long, String> sourceNameMapping, Map<Long, String> sourceLogoMapping, Long lastId, int size, String keyword) {
         // 사용자가 구독한 source 조회
         List<Long> sourceIds = sourceService.getSourcesByUser(userId)
                 .stream()
@@ -88,7 +109,7 @@ public class FeedServiceImpl implements FeedService {
         }
 
         List<ContentFeedResponseDto> feeds = contents.stream()
-                .map(content -> ContentFeedResponseDto.from(content, sourceMapping))
+                .map(content -> ContentFeedResponseDto.from(content, sourceNameMapping, sourceLogoMapping))
                 .collect(Collectors.toList());
 
         if (userId != null && !feeds.isEmpty()) {

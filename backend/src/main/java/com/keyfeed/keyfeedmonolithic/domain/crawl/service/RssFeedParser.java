@@ -1,8 +1,10 @@
 package com.keyfeed.keyfeedmonolithic.domain.crawl.service;
 
 import com.keyfeed.keyfeedmonolithic.domain.crawl.dto.FeedItem;
+import com.keyfeed.keyfeedmonolithic.domain.crawl.dto.ParsedFeedResult;
 import com.rometools.rome.feed.synd.SyndEntry;
 import com.rometools.rome.feed.synd.SyndFeed;
+import com.rometools.rome.feed.synd.SyndImage;
 import com.rometools.rome.io.SyndFeedInput;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
@@ -25,8 +27,9 @@ public class RssFeedParser {
 
     private static final int SUMMARY_LENGTH = 200;
 
-    public List<FeedItem> parse(String feedUrl) {
+    public ParsedFeedResult parse(String feedUrl) {
         List<FeedItem> items = new ArrayList<>();
+        String logoUrl = null;
         try {
             String xmlData;
             try (InputStream in = new URL(feedUrl).openStream()) {
@@ -40,6 +43,19 @@ public class RssFeedParser {
             // 입력받은 feedUrl에 HTTP요청을 보내 XML데이터를 가져온다
             SyndFeedInput input = new SyndFeedInput();
             SyndFeed feed = input.build(new StringReader(cleanXml)); // XML구조를 분석하여 자바 객체로 변환(SyncFeed 객체)
+
+            // 채널 레벨 로고 이미지 추출 (RSS <image> 또는 Atom <logo>)
+            SyndImage image = feed.getImage();
+            if (image != null && image.getUrl() != null) {
+                logoUrl = image.getUrl();
+            }
+            // Atom <icon> 폴백
+            if (logoUrl == null) {
+                SyndImage icon = feed.getIcon();
+                if (icon != null && icon.getUrl() != null) {
+                    logoUrl = icon.getUrl();
+                }
+            }
 
             // 각 게시글 처리
             // Rome 라이브러리는 원본이 RSS 2.0의 <item>이든 Atom 1.0의 <entry>이든 상관없이 SyndEntry라는 표준 객체로 통일해 준다
@@ -86,6 +102,6 @@ public class RssFeedParser {
         } catch (Exception e) {
             log.error("RSS 피드 파싱 실패: URL={}, 에러={}", feedUrl, e.getMessage());
         }
-        return items;
+        return new ParsedFeedResult(logoUrl, items);
     }
 }

@@ -26,7 +26,8 @@ function transformBookmarkToPost(item: BookmarkItem): Post {
         content: '', // 원문 링크로 나가는 경우가 많으므로 비워둠
         thumbnail: item.content.thumbnailUrl,
         folder: item.folderName,
-        bookmarkId: item.bookmarkId
+        bookmarkId: item.bookmarkId,
+        originalUrl: item.content.originalUrl
     };
 }
 

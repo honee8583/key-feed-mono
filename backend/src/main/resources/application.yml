@@ -47,3 +47,7 @@ app:
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS}
+
+toss:
+  base-url: https://api.tosspayments.com
+  secret-key: ENC(EK/z5RHruz9/kt7dkhmIeH8IG5EoosP9joX9P9TScySL7MbGV3YmOmFhZn9T5lBa)

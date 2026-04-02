@@ -1,11 +1,13 @@
 import { useNavigate } from 'react-router-dom';
-import { Mail, Bell, ChevronRight, LogOut, UserX } from 'lucide-react';
+import { Mail, Bell, ChevronRight, LogOut, UserX, Crown } from 'lucide-react';
 
 import { useAuthStore } from '@/stores/authStore';
+import { useUiStore } from '@/stores/uiStore';
 
 export function ProfileTab() {
     const navigate = useNavigate();
     const logout = useAuthStore((state) => state.logout);
+    const openUpgradePlan = useUiStore((state) => state.openUpgradePlan);
 
     const handleLogout = () => {
         logout();
@@ -36,10 +38,34 @@ export function ProfileTab() {
                 </div>
             </div>
 
+            <button 
+                onClick={openUpgradePlan}
+                className="w-full text-left bg-gradient-to-r from-amber-400 to-orange-500 rounded-[28px] p-6 shadow-lg shadow-orange-500/20 mb-8 flex items-center justify-between active:scale-[0.98] transition-transform group overflow-hidden relative border border-orange-400/50"
+            >
+                {/* Decoration blob */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-2xl -translate-y-8 translate-x-8"></div>
+                
+                <div className="relative z-10">
+                    <div className="flex items-center gap-1.5 text-white/90 mb-1">
+                        <Crown size={14} strokeWidth={2.5} />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Premium</span>
+                    </div>
+                    <h3 className="text-xl font-black text-white tracking-tight mb-1 group-hover:scale-[1.02] origin-left transition-transform">
+                        UPGRADE TO PRO
+                    </h3>
+                    <p className="text-[11px] text-white/80 font-bold tracking-tight">
+                        무제한 북마크 & 프리미엄 기능
+                    </p>
+                </div>
+                <ChevronRight size={24} className="text-white relative z-10 opacity-80 group-hover:opacity-100 group-hover:translate-x-1 transition-all" strokeWidth={2.5} />
+            </button>
+
             <div className="space-y-2">
-                <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 mb-1">
-                    Preferences
-                </h5>
+                <div className="mb-4">
+                    <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 mb-2">
+                        Preferences
+                    </h5>
+                </div>
 
                 <button
                     className="w-full bg-white/40 border border-white/60 rounded-xl p-3.5 flex items-center justify-between active:scale-95 transition-transform"
@@ -53,9 +79,11 @@ export function ProfileTab() {
                     <ChevronRight size={14} className="text-slate-300" />
                 </button>
 
-                <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 mt-4 mb-1">
-                    Danger Zone
-                </h5>
+                <div className="mt-8 mb-4">
+                    <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 mb-2">
+                        Danger Zone
+                    </h5>
+                </div>
 
                 <button
                     onClick={handleLogout}

@@ -17,19 +17,22 @@ public class ContentFeedResponseDto {
     private String title;
     private String summary;
     private String sourceName;
+    private String sourceLogoUrl;
     private String originalUrl;
     private String thumbnailUrl;
     private LocalDateTime publishedAt;
 
     private Long bookmarkId;
 
-    public static ContentFeedResponseDto from(Content content, Map<Long, String> sourceMapping) {
-        String sourceName = sourceMapping.getOrDefault(content.getSourceId(), content.getSourceName());
+    public static ContentFeedResponseDto from(Content content, Map<Long, String> sourceNameMapping, Map<Long, String> sourceLogoMapping) {
+        String sourceName = sourceNameMapping.getOrDefault(content.getSourceId(), content.getSourceName());
+        String sourceLogoUrl = sourceLogoMapping.get(content.getSourceId());
         return ContentFeedResponseDto.builder()
                 .contentId(String.valueOf(content.getId()))
                 .title(content.getTitle())
                 .summary(content.getSummary())
                 .sourceName(sourceName)
+                .sourceLogoUrl(sourceLogoUrl)
                 .originalUrl(content.getOriginalUrl())
                 .thumbnailUrl(content.getThumbnailUrl())
                 .publishedAt(content.getPublishedAt())

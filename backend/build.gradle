@@ -78,6 +78,9 @@ dependencies {
 
     // redis
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // wiremock
+    testImplementation 'org.wiremock:wiremock-standalone:3.10.0'
 }
 
 tasks.named('test') {

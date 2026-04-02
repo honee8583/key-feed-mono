@@ -570,12 +570,12 @@ POST /api/bookmarks
 
 | 필드 | 타입 | 필수 | 설명 |
 |------|------|------|------|
-| `contentId` | String | O | 북마크할 콘텐츠 ID (Elasticsearch Document ID) |
+| `contentId` | String | O | 북마크할 콘텐츠 ID (MySQL Content ID의 문자열 표현) |
 | `folderId` | Long | X | 담을 폴더 ID (미지정 시 미분류) |
 
 ```json
 {
-  "contentId": "es_doc_id_abc123",
+  "contentId": "123",
   "folderId": 1
 }
 ```
@@ -622,7 +622,7 @@ GET /api/bookmarks
         "folderName": "개발 아티클",
         "createdAt": "2026-03-01T10:00:00",
         "content": {
-          "contentId": "es_doc_id_abc123",
+          "contentId": "123",
           "title": "Spring Boot 3.x 마이그레이션 가이드",
           "summary": "Spring Boot 3.x로 업그레이드하는 방법을 알아봅니다.",
           "sourceName": "Spring Blog",
@@ -1082,6 +1082,7 @@ GET /api/sources/recommended
 |---------|------|------|------|
 | `lastId` | Long | X | 이전 페이지 마지막 항목의 `publishedAt` epoch millis (커서) |
 | `size` | Integer | X | 페이지 크기 (기본값: 10) |
+| `keyword` | String | X | 키워드 필터링 |
 
 - **응답**:
 
@@ -1092,7 +1093,7 @@ GET /api/sources/recommended
   "data": {
     "content": [
       {
-        "contentId": "es_document_id",
+        "contentId": "123",
         "title": "Spring Boot 3.5 Released",
         "summary": "Spring Boot 3.5 brings...",
         "sourceName": "Spring Blog",
@@ -1110,6 +1111,97 @@ GET /api/sources/recommended
 
 > `nextCursorId`는 마지막 항목의 `publishedAt`을 epoch milliseconds로 변환한 값입니다. 다음 요청 시 `lastId`에 전달합니다.
 > `bookmarkId`는 해당 콘텐츠를 북마크한 경우 북마크 ID, 북마크하지 않은 경우 `null`입니다.
+
+---
+
+## 7. 알림 (Notifications)
+
+> Base Path: `/api/notifications` — **인증 필요** (`Authorization: Bearer <token>`)
+
+---
+
+### 7-1. SSE 구독 (실시간 알림 연결)
+
+```
+GET /api/notifications/subscribe
+```
+
+> `Content-Type: text/event-stream`
+
+**Request Headers**
+
+| 헤더 | 필수 | 설명 |
+|------|------|------|
+| `Last-Event-ID` | X | 마지막으로 수신한 알림 ID. 재연결 시 유실된 알림을 재전송 받기 위해 사용 |
+
+**Response** `200 OK` — SSE 스트림
+
+연결 직후 더미 이벤트가 전송됩니다 (503 방지용):
+
+```
+event: notification
+id: 0
+data: connected
+```
+
+이후 새 알림 발생 시:
+
+```
+event: notification
+id: 42
+data: {"id":42,"title":"Spring Boot 3.5 Released","message":"새로운 글이 등록되었습니다."}
+```
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `id` | Long | 알림 ID (SSE `id` 필드와 동일) |
+| `title` | String | 콘텐츠 제목 |
+| `message` | String | 알림 메시지 |
+
+---
+
+### 7-2. 알림 목록 조회
+
+```
+GET /api/notifications
+```
+
+**Query Parameters**
+
+| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
+|---------|------|------|--------|------|
+| `lastId` | Long | X | - | 이전 페이지 마지막 알림 ID (커서) |
+| `size` | int | X | 20 | 페이지 크기 (최대 50) |
+
+**Response** `200 OK`
+
+```json
+{
+  "status": 200,
+  "message": "조회에 성공하였습니다.",
+  "data": {
+    "content": [
+      {
+        "id": 42,
+        "title": "Spring Boot 3.5 Released",
+        "message": "새로운 글이 등록되었습니다.",
+        "isRead": false,
+        "createdAt": "2026-03-23T10:00:00"
+      }
+    ],
+    "nextCursorId": 41,
+    "hasNext": true
+  }
+}
+```
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `id` | Long | 알림 ID |
+| `title` | String | 콘텐츠 제목 |
+| `message` | String | 알림 메시지 |
+| `isRead` | Boolean | 읽음 여부 |
+| `createdAt` | LocalDateTime | 알림 생성 시각 |
 
 ---
 
@@ -1148,3 +1240,5 @@ GET /api/sources/recommended
 | PATCH | `/api/sources/my/{userSourceId}/receive-feed` | 소스 피드 수신 토글 | O |
 | GET | `/api/sources/recommended` | 추천 소스 목록 조회 | O |
 | GET | `/api/feed` | 개인화 피드 조회 | O |
+| GET | `/api/notifications/subscribe` | SSE 구독 (실시간 알림 연결) | O |
+| GET | `/api/notifications` | 알림 목록 조회 | O |
