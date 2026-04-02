@@ -27,7 +27,10 @@ import java.net.URI;
 @Component
 public class TossPaymentsClient {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper mapper = new ObjectMapper();
+
+    private static final String PATH_BILLING_ISSUE = "/v1/billing/authorizations/issue";
+    private static final String PATH_BILLING = "/v1/billing/{billingKey}";
 
     private static final String ERR_INVALID_CARD_EXPIRATION = "INVALID_CARD_EXPIRATION";
     private static final String ERR_CARD_PROCESSING_ERROR = "CARD_PROCESSING_ERROR";
@@ -43,24 +46,27 @@ public class TossPaymentsClient {
         this.properties = properties;
     }
 
+    // 빌링키 발급: 카드 등록 완료 후 authKey와 customerKey로 빌링키를 발급받는다
     public TossBillingIssueResponse issueBillingKey(TossBillingIssueRequest request) {
         URI uri = UriComponentsBuilder.fromUriString(properties.getBaseUrl())
-                .path("/v1/billing/authorizations/issue")
+                .path(PATH_BILLING_ISSUE)
                 .build().toUri();
         return exchange(uri, HttpMethod.POST, request, TossBillingIssueResponse.class);
     }
 
+    // 결제 실행: 발급된 빌링키로 구독 첫 결제 및 자동결제를 실행한다
     public TossBillingChargeResponse chargeBilling(String billingKey, TossBillingChargeRequest request) {
         URI uri = UriComponentsBuilder.fromUriString(properties.getBaseUrl())
-                .path("/v1/billing/{billingKey}")
+                .path(PATH_BILLING)
                 .buildAndExpand(billingKey)
                 .toUri();
         return exchange(uri, HttpMethod.POST, request, TossBillingChargeResponse.class);
     }
 
+    // 빌링키 삭제: 사용자가 결제 수단을 삭제할 때 빌링키를 만료시킨다
     public void deleteBillingKey(String billingKey) {
         URI uri = UriComponentsBuilder.fromUriString(properties.getBaseUrl())
-                .path("/v1/billing/{billingKey}")
+                .path(PATH_BILLING)
                 .buildAndExpand(billingKey)
                 .toUri();
         exchange(uri, HttpMethod.DELETE, null, Void.class);
@@ -69,8 +75,7 @@ public class TossPaymentsClient {
     private <T> T exchange(URI uri, HttpMethod method, Object body, Class<T> responseType) {
         HttpEntity<Object> entity = new HttpEntity<>(body);
         try {
-            ResponseEntity<T> response = restTemplate.exchange(uri, method, entity, responseType);
-            return response.getBody();
+            return restTemplate.exchange(uri, method, entity, responseType).getBody();
         } catch (HttpClientErrorException e) {
             handleClientError(e);
             throw new InternalApiRequestException("Toss API 호출 실패: " + e.getMessage());
@@ -98,7 +103,7 @@ public class TossPaymentsClient {
 
     private TossErrorResponse parseError(String body) {
         try {
-            return MAPPER.readValue(body, TossErrorResponse.class);
+            return mapper.readValue(body, TossErrorResponse.class);
         } catch (Exception e) {
             log.error("Toss 에러 응답 파싱 실패: {}", body);
             return null;
