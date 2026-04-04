@@ -45,11 +45,18 @@ public class User extends BaseTimeEntity {
 
     private LocalDateTime lastNotificationCheckedAt;
 
+    @Column(length = 200)
+    private String customerKey;
+
     public void updatePassword(String encodedPassword) {
         this.password = encodedPassword;
     }
 
     public void updateLastNotificationCheckedAt(LocalDateTime lastNotificationCheckedAt) {
         this.lastNotificationCheckedAt = lastNotificationCheckedAt;
+    }
+
+    public void updateCustomerKey(String customerKey) {
+        this.customerKey = customerKey;
     }
 }

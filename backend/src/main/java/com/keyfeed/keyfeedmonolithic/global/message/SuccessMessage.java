@@ -20,7 +20,14 @@ public enum SuccessMessage {
     PASSWORD_CHANGE_SUCCESS("비밀번호가 성공적으로 변경되었습니다."),
     WITHDRAW_SUCCESS("회원 탈퇴가 완료되었습니다."),
     PASSWORD_RESET_EMAIL_SENT("비밀번호 재설정을 위한 인증 이메일이 발송되었습니다."),
-    PASSWORD_RESET_SUCCESS("비밀번호가 성공적으로 재설정되었습니다.");
+    PASSWORD_RESET_SUCCESS("비밀번호가 성공적으로 재설정되었습니다."),
+
+    // payment
+    PAYMENT_METHOD_REGISTERED("결제 수단이 등록되었습니다."),
+    PAYMENT_METHOD_LIST("결제 수단 목록 조회에 성공했습니다."),
+    PAYMENT_METHOD_DELETED("결제 수단이 삭제되었습니다."),
+    PAYMENT_METHOD_DEFAULT_CHANGED("기본 결제 수단이 변경되었습니다."),
+    CUSTOMER_KEY_ISSUED("고객 키가 발급되었습니다.");
 
     private final String message;
 }

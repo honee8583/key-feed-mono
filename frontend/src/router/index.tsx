@@ -12,6 +12,7 @@ import { HomeTab } from '@/features/feed/pages/HomeTab';
 import { ExploreTab } from '@/features/explore/pages/ExploreTab';
 import { SavedTab } from '@/features/saved/pages/SavedTab';
 import { ProfileTab } from '@/features/profile/pages/ProfileTab';
+import { PaymentCallback } from '@/features/payment/pages/PaymentCallback';
 
 export const router = createBrowserRouter([
     {
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
             { path: 'explore', element: <ExploreTab /> },
             { path: 'saved', element: <SavedTab /> },
             { path: 'profile', element: <ProfileTab /> },
+            { path: 'payment/callback', element: <PaymentCallback /> },
         ]
     }
 ]);

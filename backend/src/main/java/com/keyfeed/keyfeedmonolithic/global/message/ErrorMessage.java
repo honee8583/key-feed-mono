@@ -47,6 +47,11 @@ public enum ErrorMessage {
     INVALID_PAYMENT_METHOD("유효하지 않은 결제 수단입니다."),
     PAYMENT_FAILED("결제 처리에 실패했습니다."),
     TOSS_UNAUTHORIZED("결제 인증 키가 유효하지 않습니다."),
+    INVALID_AUTH_KEY("만료되었거나 유효하지 않은 인증 키입니다."),
+    DUPLICATE_PAYMENT_METHOD("이미 등록된 결제 수단입니다."),
+    PAYMENT_METHOD_IN_USE("구독 중인 결제 수단은 삭제할 수 없습니다. 먼저 결제 수단을 변경해주세요."),
+    PAYMENT_METHOD_NOT_FOUND("결제 수단을 찾을 수 없습니다."),
+    PAYMENT_METHOD_ACCESS_DENIED("해당 결제 수단에 대한 권한이 없습니다."),
 
     // URL
     URL_UNKNOWN_HOST("존재하지 않는 주소입니다."),

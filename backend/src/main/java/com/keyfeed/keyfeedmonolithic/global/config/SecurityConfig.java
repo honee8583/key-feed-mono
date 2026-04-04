@@ -74,6 +74,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/sources/**").authenticated()
                 .requestMatchers("/api/bookmarks/**").authenticated()
                 .requestMatchers("/api/users/**").authenticated()
+                .requestMatchers("/api/payment-methods/**").authenticated()
                 .requestMatchers("/internal/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated()
