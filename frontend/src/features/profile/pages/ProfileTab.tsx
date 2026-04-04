@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Mail, Bell, ChevronRight, LogOut, UserX, Crown } from 'lucide-react';
+import { Mail, Bell, ChevronRight, LogOut, UserX, Crown, CreditCard, Link as LinkIcon } from 'lucide-react';
 
 import { useAuthStore } from '@/stores/authStore';
 import { useUiStore } from '@/stores/uiStore';
@@ -8,6 +8,8 @@ export function ProfileTab() {
     const navigate = useNavigate();
     const logout = useAuthStore((state) => state.logout);
     const openUpgradePlan = useUiStore((state) => state.openUpgradePlan);
+    const openSourcesManagement = useUiStore((state) => state.openSourcesManagement);
+    const openPaymentMethod = useUiStore((state) => state.openPaymentMethod);
 
     const handleLogout = () => {
         logout();
@@ -75,6 +77,32 @@ export function ProfileTab() {
                             <Bell size={16} />
                         </div>
                         <span className="text-xs font-bold text-slate-700">알림 설정</span>
+                    </div>
+                    <ChevronRight size={14} className="text-slate-300" />
+                </button>
+
+                <button
+                    onClick={openSourcesManagement}
+                    className="w-full bg-white/40 border border-white/60 rounded-xl p-3.5 flex items-center justify-between active:scale-95 transition-transform"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-white/50 rounded-lg flex items-center justify-center text-teal-500 shadow-sm border border-white/50">
+                            <LinkIcon size={16} />
+                        </div>
+                        <span className="text-xs font-bold text-slate-700">내 소스 관리</span>
+                    </div>
+                    <ChevronRight size={14} className="text-slate-300" />
+                </button>
+
+                <button
+                    onClick={openPaymentMethod}
+                    className="w-full bg-white/40 border border-white/60 rounded-xl p-3.5 flex items-center justify-between active:scale-95 transition-transform"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-white/50 rounded-lg flex items-center justify-center text-amber-500 shadow-sm border border-white/50">
+                            <CreditCard size={16} />
+                        </div>
+                        <span className="text-xs font-bold text-slate-700">결제 수단 관리</span>
                     </div>
                     <ChevronRight size={14} className="text-slate-300" />
                 </button>

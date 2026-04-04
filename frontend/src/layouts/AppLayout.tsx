@@ -10,6 +10,8 @@ import { SearchOverlay } from '@/features/search/components/SearchOverlay';
 import { NotificationOverlay } from '@/features/notifications/components/NotificationOverlay';
 import { FolderOverlay } from '@/features/saved/components/FolderOverlay';
 import { UpgradePlanOverlay } from '@/features/profile/pages/UpgradePlanOverlay';
+import { MySourcesOverlay } from '@/features/profile/pages/MySourcesOverlay';
+import { PaymentMethodManageOverlay } from '@/features/payment/pages/PaymentMethodManageOverlay';
 import { DesktopSidebar } from './DesktopSidebar';
 import { useNotifications, useNotificationSubscription } from '@/features/notifications/api/notificationApi';
 
@@ -73,6 +75,10 @@ export function AppLayout() {
         closeNotifications,
         closeFolderManagement,
         closeUpgradePlan,
+        isSourcesMounted,
+        closeSourcesManagement,
+        isPaymentMethodMounted,
+        closePaymentMethod,
     } = useUiStore();
 
     // 탭 이동(라우트 변경) 시 오버레이 창 닫기
@@ -81,7 +87,9 @@ export function AppLayout() {
         closeSearch();
         closeFolderManagement();
         closeUpgradePlan();
-    }, [location.pathname, closeNotifications, closeSearch, closeFolderManagement, closeUpgradePlan]);
+        closeSourcesManagement();
+        closePaymentMethod();
+    }, [location.pathname, closeNotifications, closeSearch, closeFolderManagement, closeUpgradePlan, closeSourcesManagement, closePaymentMethod]);
 
     return (
         <div className="h-[100dvh] overflow-hidden bg-slate-200 flex justify-center font-sans selection:bg-slate-300">
@@ -111,6 +119,8 @@ export function AppLayout() {
                         {isNotificationsMounted && <NotificationOverlay />}
                         {isFolderMounted && <FolderOverlay />}
                         {isUpgradeMounted && <UpgradePlanOverlay />}
+                        {isSourcesMounted && <MySourcesOverlay />}
+                        {isPaymentMethodMounted && <PaymentMethodManageOverlay />}
 
                         <header className="md:hidden sticky top-0 bg-white/40 backdrop-blur-3xl z-40 px-6 pt-5 pb-2 border-b border-white/30">
                             <div className="flex items-center justify-between mb-1">

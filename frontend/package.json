@@ -13,6 +13,7 @@
     "@gsap/react": "^2.1.2",
     "@hookform/resolvers": "^5.2.2",
     "@tanstack/react-query": "^5.90.21",
+    "@tosspayments/tosspayments-sdk": "^2.6.0",
     "axios": "^1.13.6",
     "clsx": "^2.1.1",
     "gsap": "^3.14.2",

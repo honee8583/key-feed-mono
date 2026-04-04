@@ -1,8 +1,12 @@
 import { useRef, useEffect } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
+import { loadTossPayments } from '@tosspayments/tosspayments-sdk';
 import { ArrowLeft, Bookmark, Folder, Star, Zap, CheckCircle2, Crown, Sparkles, Tag } from 'lucide-react';
 import { useUiStore } from '@/stores/uiStore';
+import { getCustomerKey } from '@/features/payment/api/paymentApi';
+
+const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY || "test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq";
 
 const FEATURES = [
     { icon: Bookmark, title: '무제한 북마크', desc: '원하는 만큼 저장하고 관리하세요' },
@@ -16,6 +20,23 @@ export function UpgradePlanOverlay() {
     const { isUpgradeOpen, closeUpgradePlan, unmountUpgradePlan } = useUiStore();
     const overlayRef = useRef<HTMLDivElement>(null);
     const { contextSafe } = useGSAP({ scope: overlayRef });
+
+    const handleStartNow = async () => {
+        try {
+            const customerKey = await getCustomerKey();
+            console.log('[Toss] customerKey:', customerKey);
+            const tossPayments = await loadTossPayments(clientKey);
+            const payment = tossPayments.payment({ customerKey });
+            await payment.requestBillingAuth({
+                method: "CARD",
+                successUrl: window.location.origin + "/payment/callback",
+                failUrl: window.location.origin + "/payment/callback?fail=true",
+            });
+        } catch (error) {
+            console.error("결제창 연동 오류", error);
+            alert("결제 창을 불러올 수 없습니다.");
+        }
+    };
 
     useEffect(() => {
         contextSafe(() => {
@@ -117,7 +138,7 @@ export function UpgradePlanOverlay() {
             </div>
 
             <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-slate-100 via-slate-100/95 to-transparent pt-16 pb-8 px-6 z-20">
-                <button className="w-full bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white rounded-full py-4 text-[13px] font-black tracking-widest shadow-xl shadow-orange-500/30 flex items-center justify-center gap-2 mb-3 active:scale-95 transition-transform">
+                <button onClick={handleStartNow} className="w-full bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white rounded-full py-4 text-[13px] font-black tracking-widest shadow-xl shadow-orange-500/30 flex items-center justify-center gap-2 mb-3 active:scale-95 transition-transform">
                     <Crown size={16} strokeWidth={3} /> 지금 시작하기
                 </button>
                 <button 

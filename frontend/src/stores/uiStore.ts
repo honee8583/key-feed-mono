@@ -9,6 +9,10 @@ export interface UiState {
     isFolderOpen: boolean;
     isUpgradeMounted: boolean;
     isUpgradeOpen: boolean;
+    isSourcesMounted: boolean;
+    isSourcesOpen: boolean;
+    isPaymentMethodMounted: boolean;
+    isPaymentMethodOpen: boolean;
 
     openSearch: () => void;
     closeSearch: () => void;
@@ -25,6 +29,14 @@ export interface UiState {
     openUpgradePlan: () => void;
     closeUpgradePlan: () => void;
     unmountUpgradePlan: () => void;
+
+    openSourcesManagement: () => void;
+    closeSourcesManagement: () => void;
+    unmountSourcesManagement: () => void;
+
+    openPaymentMethod: () => void;
+    closePaymentMethod: () => void;
+    unmountPaymentMethod: () => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -36,6 +48,10 @@ export const useUiStore = create<UiState>((set) => ({
     isFolderOpen: false,
     isUpgradeMounted: false,
     isUpgradeOpen: false,
+    isSourcesMounted: false,
+    isSourcesOpen: false,
+    isPaymentMethodMounted: false,
+    isPaymentMethodOpen: false,
 
     openSearch: () => set({ isSearchMounted: true, isSearchOpen: true }),
     closeSearch: () => set({ isSearchOpen: false }),
@@ -52,4 +68,12 @@ export const useUiStore = create<UiState>((set) => ({
     openUpgradePlan: () => set({ isUpgradeMounted: true, isUpgradeOpen: true }),
     closeUpgradePlan: () => set({ isUpgradeOpen: false }),
     unmountUpgradePlan: () => set({ isUpgradeMounted: false }),
+
+    openSourcesManagement: () => set({ isSourcesMounted: true, isSourcesOpen: true }),
+    closeSourcesManagement: () => set({ isSourcesOpen: false }),
+    unmountSourcesManagement: () => set({ isSourcesMounted: false }),
+
+    openPaymentMethod: () => set({ isPaymentMethodMounted: true, isPaymentMethodOpen: true }),
+    closePaymentMethod: () => set({ isPaymentMethodOpen: false }),
+    unmountPaymentMethod: () => set({ isPaymentMethodMounted: false }),
 }));
