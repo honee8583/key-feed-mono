@@ -52,6 +52,7 @@ class SubscriptionServiceImplTest {
     @Test
     @DisplayName("구독 시작 성공 - 첫 결제 후 ACTIVE 상태의 구독이 생성된다")
     void 구독_시작_성공() {
+        // given
         Long userId = 1L;
         Long methodId = 10L;
         User user = makeUser(userId);
@@ -66,8 +67,11 @@ class SubscriptionServiceImplTest {
         given(subscriptionRepository.save(any())).willAnswer(i -> i.getArgument(0));
 
         SubscriptionStartRequestDto request = makeStartRequest(methodId);
+
+        // when
         SubscriptionStartResponseDto result = subscriptionService.startSubscription(userId, request);
 
+        // then
         assertThat(result.getStatus()).isEqualTo("ACTIVE");
         assertThat(result.getNextBillingAt()).isNotNull();
         assertThat(result.getExpiredAt()).isNotNull();
@@ -76,9 +80,11 @@ class SubscriptionServiceImplTest {
     @Test
     @DisplayName("구독 시작 실패 - 이미 ACTIVE 구독이 존재하면 409 예외")
     void 구독_시작_실패_중복구독() {
+        // given
         Long userId = 1L;
         given(subscriptionRepository.existsByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)).willReturn(true);
 
+        // when & then
         assertThatThrownBy(() -> subscriptionService.startSubscription(userId, makeStartRequest(10L)))
                 .isInstanceOf(ActiveSubscriptionAlreadyExistsException.class);
     }
@@ -86,10 +92,12 @@ class SubscriptionServiceImplTest {
     @Test
     @DisplayName("구독 시작 실패 - 존재하지 않는 결제 수단이면 404 예외")
     void 구독_시작_실패_결제수단_없음() {
+        // given
         Long userId = 1L;
         given(subscriptionRepository.existsByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)).willReturn(false);
         given(paymentMethodRepository.findByIdAndIsActiveTrue(anyLong())).willReturn(Optional.empty());
 
+        // when & then
         assertThatThrownBy(() -> subscriptionService.startSubscription(userId, makeStartRequest(99L)))
                 .isInstanceOf(PaymentMethodNotFoundException.class);
     }
@@ -97,6 +105,7 @@ class SubscriptionServiceImplTest {
     @Test
     @DisplayName("구독 시작 실패 - 타인 소유 결제 수단이면 404 예외")
     void 구독_시작_실패_결제수단_소유권_불일치() {
+        // given
         Long userId = 1L;
         Long otherUserId = 2L;
         User otherUser = makeUser(otherUserId);
@@ -105,6 +114,7 @@ class SubscriptionServiceImplTest {
         given(subscriptionRepository.existsByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)).willReturn(false);
         given(paymentMethodRepository.findByIdAndIsActiveTrue(10L)).willReturn(Optional.of(otherMethod));
 
+        // when & then
         assertThatThrownBy(() -> subscriptionService.startSubscription(userId, makeStartRequest(10L)))
                 .isInstanceOf(PaymentMethodNotFoundException.class);
     }
@@ -112,6 +122,7 @@ class SubscriptionServiceImplTest {
     @Test
     @DisplayName("구독 시작 실패 - 토스 결제 실패 시 payment_history FAILED 기록 후 예외")
     void 구독_시작_실패_결제실패() {
+        // given
         Long userId = 1L;
         Long methodId = 10L;
         User user = makeUser(userId);
@@ -127,6 +138,7 @@ class SubscriptionServiceImplTest {
         });
         given(tossPaymentsClient.chargeBilling(anyString(), any())).willThrow(new PaymentFailedException());
 
+        // when & then
         assertThatThrownBy(() -> subscriptionService.startSubscription(userId, makeStartRequest(methodId)))
                 .isInstanceOf(PaymentFailedException.class);
 
@@ -139,6 +151,7 @@ class SubscriptionServiceImplTest {
     @Test
     @DisplayName("구독 조회 성공 - ACTIVE 구독이 있으면 상태 반환")
     void 구독_조회_성공_ACTIVE() {
+        // given
         Long userId = 1L;
         User user = makeUser(userId);
         PaymentMethod paymentMethod = makePaymentMethod(10L, user);
@@ -147,8 +160,10 @@ class SubscriptionServiceImplTest {
         given(subscriptionRepository.findTopByUserIdAndStatusInOrderByCreatedAtDesc(eq(userId), any()))
                 .willReturn(Optional.of(subscription));
 
+        // when
         SubscriptionStatusResponseDto result = subscriptionService.getMySubscription(userId);
 
+        // then
         assertThat(result.getStatus()).isEqualTo("ACTIVE");
         assertThat(result.getSubscriptionId()).isEqualTo(subscription.getId());
     }
@@ -156,12 +171,15 @@ class SubscriptionServiceImplTest {
     @Test
     @DisplayName("구독 조회 성공 - 구독이 없으면 status NONE 반환")
     void 구독_조회_성공_구독없음() {
+        // given
         Long userId = 1L;
         given(subscriptionRepository.findTopByUserIdAndStatusInOrderByCreatedAtDesc(eq(userId), any()))
                 .willReturn(Optional.empty());
 
+        // when
         SubscriptionStatusResponseDto result = subscriptionService.getMySubscription(userId);
 
+        // then
         assertThat(result.getStatus()).isEqualTo("NONE");
         assertThat(result.getSubscriptionId()).isNull();
     }
@@ -169,6 +187,7 @@ class SubscriptionServiceImplTest {
     @Test
     @DisplayName("구독 조회 성공 - CANCELED 구독이면 canceledAt이 포함된다")
     void 구독_조회_성공_CANCELED() {
+        // given
         Long userId = 1L;
         User user = makeUser(userId);
         PaymentMethod paymentMethod = makePaymentMethod(10L, user);
@@ -178,8 +197,10 @@ class SubscriptionServiceImplTest {
         given(subscriptionRepository.findTopByUserIdAndStatusInOrderByCreatedAtDesc(eq(userId), any()))
                 .willReturn(Optional.of(subscription));
 
+        // when
         SubscriptionStatusResponseDto result = subscriptionService.getMySubscription(userId);
 
+        // then
         assertThat(result.getStatus()).isEqualTo("CANCELED");
         assertThat(result.getCanceledAt()).isNotNull();
     }
@@ -189,6 +210,7 @@ class SubscriptionServiceImplTest {
     @Test
     @DisplayName("구독 해지 성공 - ACTIVE 구독이 CANCELED로 변경된다")
     void 구독_해지_성공() {
+        // given
         Long userId = 1L;
         User user = makeUser(userId);
         PaymentMethod paymentMethod = makePaymentMethod(10L, user);
@@ -197,8 +219,10 @@ class SubscriptionServiceImplTest {
         given(subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE))
                 .willReturn(Optional.of(subscription));
 
+        // when
         SubscriptionCancelResponseDto result = subscriptionService.cancelSubscription(userId);
 
+        // then
         assertThat(result.getStatus()).isEqualTo("CANCELED");
         assertThat(result.getCanceledAt()).isNotNull();
         assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.CANCELED);
@@ -207,10 +231,12 @@ class SubscriptionServiceImplTest {
     @Test
     @DisplayName("구독 해지 실패 - ACTIVE 구독이 없으면 404 예외")
     void 구독_해지_실패_활성구독없음() {
+        // given
         Long userId = 1L;
         given(subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE))
                 .willReturn(Optional.empty());
 
+        // when & then
         assertThatThrownBy(() -> subscriptionService.cancelSubscription(userId))
                 .isInstanceOf(SubscriptionNotFoundException.class);
     }
@@ -220,6 +246,7 @@ class SubscriptionServiceImplTest {
     @Test
     @DisplayName("구독 재개 성공 - PAUSED 구독이 ACTIVE로 복구되고 retryCount가 0이 된다")
     void 구독_재개_성공() {
+        // given
         Long userId = 1L;
         Long methodId = 10L;
         User user = makeUser(userId);
@@ -235,8 +262,11 @@ class SubscriptionServiceImplTest {
         given(paymentHistoryRepository.save(any())).willAnswer(i -> i.getArgument(0));
 
         SubscriptionResumeRequestDto request = makeResumeRequest(methodId);
+
+        // when
         SubscriptionResumeResponseDto result = subscriptionService.resumeSubscription(userId, request);
 
+        // then
         assertThat(result.getStatus()).isEqualTo("ACTIVE");
         assertThat(result.getNextBillingAt()).isNotNull();
         assertThat(subscription.getRetryCount()).isZero();
@@ -245,10 +275,12 @@ class SubscriptionServiceImplTest {
     @Test
     @DisplayName("구독 재개 실패 - PAUSED 구독이 없으면 404 예외")
     void 구독_재개_실패_일시정지구독없음() {
+        // given
         Long userId = 1L;
         given(subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.PAUSED))
                 .willReturn(Optional.empty());
 
+        // when & then
         assertThatThrownBy(() -> subscriptionService.resumeSubscription(userId, makeResumeRequest(10L)))
                 .isInstanceOf(PausedSubscriptionNotFoundException.class);
     }
@@ -256,6 +288,7 @@ class SubscriptionServiceImplTest {
     @Test
     @DisplayName("구독 재개 실패 - 유효하지 않은 결제 수단이면 404 예외")
     void 구독_재개_실패_결제수단없음() {
+        // given
         Long userId = 1L;
         User user = makeUser(userId);
         PaymentMethod paymentMethod = makePaymentMethod(10L, user);
@@ -265,6 +298,7 @@ class SubscriptionServiceImplTest {
                 .willReturn(Optional.of(subscription));
         given(paymentMethodRepository.findByIdAndIsActiveTrue(99L)).willReturn(Optional.empty());
 
+        // when & then
         assertThatThrownBy(() -> subscriptionService.resumeSubscription(userId, makeResumeRequest(99L)))
                 .isInstanceOf(PaymentMethodNotFoundException.class);
     }
@@ -272,6 +306,7 @@ class SubscriptionServiceImplTest {
     @Test
     @DisplayName("구독 재개 실패 - 결제 실패 시 PAUSED 상태 유지 및 payment_history FAILED 기록")
     void 구독_재개_실패_결제실패_상태유지() {
+        // given
         Long userId = 1L;
         Long methodId = 10L;
         User user = makeUser(userId);
@@ -289,6 +324,7 @@ class SubscriptionServiceImplTest {
         });
         given(tossPaymentsClient.chargeBilling(anyString(), any())).willThrow(new PaymentFailedException());
 
+        // when & then
         assertThatThrownBy(() -> subscriptionService.resumeSubscription(userId, makeResumeRequest(methodId)))
                 .isInstanceOf(PaymentFailedException.class);
 
@@ -301,6 +337,7 @@ class SubscriptionServiceImplTest {
     @Test
     @DisplayName("구독 취소(환불) 성공 - 결제일 1일 이내 취소 시 REFUNDED 상태로 전환된다")
     void 구독_취소_성공() {
+        // given
         Long userId = 1L;
         User user = makeUser(userId);
         PaymentMethod paymentMethod = makePaymentMethod(10L, user);
@@ -314,8 +351,10 @@ class SubscriptionServiceImplTest {
                 .willReturn(Optional.of(history));
         willDoNothing().given(tossPaymentsClient).cancelPayment(anyString(), any());
 
+        // when
         SubscriptionRefundResponseDto result = subscriptionService.refundSubscription(userId);
 
+        // then
         assertThat(result.getStatus()).isEqualTo("REFUNDED");
         assertThat(result.getCanceledAt()).isNotNull();
         assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.REFUNDED);
@@ -325,10 +364,12 @@ class SubscriptionServiceImplTest {
     @Test
     @DisplayName("구독 취소(환불) 실패 - ACTIVE 구독 없으면 404 예외")
     void 구독_취소_실패_활성구독없음() {
+        // given
         Long userId = 1L;
         given(subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE))
                 .willReturn(Optional.empty());
 
+        // when & then
         assertThatThrownBy(() -> subscriptionService.refundSubscription(userId))
                 .isInstanceOf(SubscriptionNotFoundException.class);
     }
@@ -336,6 +377,7 @@ class SubscriptionServiceImplTest {
     @Test
     @DisplayName("구독 취소(환불) 실패 - 결제일로부터 1일 초과 시 422 예외")
     void 구독_취소_실패_환불기간초과() {
+        // given
         Long userId = 1L;
         User user = makeUser(userId);
         PaymentMethod paymentMethod = makePaymentMethod(10L, user);
@@ -355,6 +397,7 @@ class SubscriptionServiceImplTest {
         given(subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE))
                 .willReturn(Optional.of(subscription));
 
+        // when & then
         assertThatThrownBy(() -> subscriptionService.refundSubscription(userId))
                 .isInstanceOf(RefundPeriodExpiredException.class);
     }
@@ -362,6 +405,7 @@ class SubscriptionServiceImplTest {
     @Test
     @DisplayName("구독 취소(환불) 실패 - 토스 환불 API 실패 시 RefundFailedException")
     void 구독_취소_실패_토스API실패() {
+        // given
         Long userId = 1L;
         User user = makeUser(userId);
         PaymentMethod paymentMethod = makePaymentMethod(10L, user);
@@ -375,6 +419,7 @@ class SubscriptionServiceImplTest {
                 .willReturn(Optional.of(history));
         willThrow(new RuntimeException("Toss API error")).given(tossPaymentsClient).cancelPayment(anyString(), any());
 
+        // when & then
         assertThatThrownBy(() -> subscriptionService.refundSubscription(userId))
                 .isInstanceOf(RefundFailedException.class);
 
