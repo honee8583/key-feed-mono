@@ -32,7 +32,8 @@ public enum SuccessMessage {
     SUBSCRIPTION_STATUS_READ("구독 상태 조회에 성공했습니다."),
     SUBSCRIPTION_CANCELED("구독이 해지되었습니다."),
     SUBSCRIPTION_RESUMED("구독이 재개되었습니다."),
-    SUBSCRIPTION_REFUNDED("구독이 취소되었습니다. 환불이 처리됩니다.");
+    SUBSCRIPTION_REFUNDED("구독이 취소되었습니다. 환불이 처리됩니다."),
+    PAYMENT_HISTORY_LIST("결제 이력 조회에 성공했습니다.");
 
     private final String message;
 }

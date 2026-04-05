@@ -58,6 +58,8 @@ public enum ErrorMessage {
     PAUSED_SUBSCRIPTION_NOT_FOUND("일시 정지된 구독이 없습니다."),
     REFUND_PERIOD_EXPIRED("결제일로부터 1일이 지나 취소할 수 없습니다."),
     REFUND_FAILED("환불 처리에 실패했습니다."),
+    PAYMENT_HISTORY_SIZE_EXCEEDED("최대 조회 가능 수는 50개입니다."),
+    INVALID_PAYMENT_STATUS("유효하지 않은 상태값입니다."),
 
     // URL
     URL_UNKNOWN_HOST("존재하지 않는 주소입니다."),
