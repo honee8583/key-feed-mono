@@ -5,10 +5,17 @@ import com.keyfeed.keyfeedmonolithic.domain.payment.entity.SubscriptionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
 
     boolean existsByPaymentMethodIdAndStatus(Long methodId, SubscriptionStatus status);
 
     List<Subscription> findByUserIdAndStatusIn(Long userId, List<SubscriptionStatus> statuses);
+
+    Optional<Subscription> findByUserIdAndStatus(Long userId, SubscriptionStatus status);
+
+    boolean existsByUserIdAndStatus(Long userId, SubscriptionStatus status);
+
+    Optional<Subscription> findTopByUserIdAndStatusInOrderByCreatedAtDesc(Long userId, List<SubscriptionStatus> statuses);
 }

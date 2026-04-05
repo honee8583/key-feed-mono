@@ -52,6 +52,12 @@ public enum ErrorMessage {
     PAYMENT_METHOD_IN_USE("구독 중인 결제 수단은 삭제할 수 없습니다. 먼저 결제 수단을 변경해주세요."),
     PAYMENT_METHOD_NOT_FOUND("결제 수단을 찾을 수 없습니다."),
     PAYMENT_METHOD_ACCESS_DENIED("해당 결제 수단에 대한 권한이 없습니다."),
+    ACTIVE_SUBSCRIPTION_ALREADY_EXISTS("이미 구독 중입니다."),
+    SUBSCRIPTION_NOT_FOUND("활성화된 구독이 없습니다."),
+    ALREADY_CANCELED("이미 해지 신청된 구독입니다."),
+    PAUSED_SUBSCRIPTION_NOT_FOUND("일시 정지된 구독이 없습니다."),
+    REFUND_PERIOD_EXPIRED("결제일로부터 1일이 지나 취소할 수 없습니다."),
+    REFUND_FAILED("환불 처리에 실패했습니다."),
 
     // URL
     URL_UNKNOWN_HOST("존재하지 않는 주소입니다."),
