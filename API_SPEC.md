@@ -1648,6 +1648,99 @@ POST /api/subscriptions/refund
 
 ---
 
+## 10. 결제 이력 (Payment History)
+
+> Base Path: `/api/payment-history` — **JWT 인증 필요**
+
+---
+
+### 10-1. 결제 이력 목록 조회
+
+```
+GET /api/payment-history
+```
+
+**Query Parameters**
+
+| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
+|----------|------|------|--------|------|
+| `cursorId` | Long | X | - | 이전 응답의 `nextCursorId` (첫 요청 시 생략) |
+| `size` | Integer | X | 10 | 페이지당 항목 수 (최대 50) |
+| `status` | String | X | 전체 | 상태 필터 (DONE, FAILED, CANCELED 등) |
+
+**동작 설명**
+
+- 로그인한 사용자의 결제 이력을 최신순(paymentId 내림차순)으로 반환합니다.
+- 커서 기반 페이징: `cursorId` 미지정 시 최신 이력부터, 지정 시 해당 ID 미만 이력을 반환합니다.
+- `READY`, `IN_PROGRESS`는 내부 처리 상태이므로 응답에서 제외됩니다.
+- `payment_method`가 소프트 삭제된 경우에도 이력은 정상 반환됩니다.
+- 결제 이력이 없는 경우 `content: []`로 정상 반환합니다 (404 아님).
+
+**Response** `200 OK`
+
+```json
+{
+  "status": 200,
+  "message": "결제 이력 조회에 성공했습니다.",
+  "data": {
+    "content": [
+      {
+        "paymentId": 5,
+        "orderId": "42-20260401100000-A1B2",
+        "orderName": "프리미엄 구독 1개월",
+        "amount": 9900,
+        "status": "DONE",
+        "failReason": null,
+        "approvedAt": "2026-04-01T10:00:00",
+        "createdAt": "2026-04-01T10:00:00",
+        "paymentMethod": {
+          "providerName": "현대",
+          "displayNumber": "1234****5678",
+          "methodType": "CARD"
+        }
+      },
+      {
+        "paymentId": 4,
+        "orderId": "42-20260301100000-C3D4",
+        "orderName": "프리미엄 구독 1개월",
+        "amount": 9900,
+        "status": "FAILED",
+        "failReason": "EXCEED_MAX_DAILY_PAYMENT_COUNT",
+        "approvedAt": null,
+        "createdAt": "2026-03-01T10:00:00",
+        "paymentMethod": {
+          "providerName": "현대",
+          "displayNumber": "1234****5678",
+          "methodType": "CARD"
+        }
+      }
+    ],
+    "nextCursorId": 4,
+    "hasNext": false
+  }
+}
+```
+
+**status 필터 가능 값**
+
+| 값 | 설명 |
+|----|------|
+| `DONE` | 결제 완료 |
+| `FAILED` | 결제 실패 |
+| `CANCELED` | 결제 취소 (환불) |
+| `PARTIAL_CANCELED` | 부분 취소 |
+| `ABORTED` | 결제 중단 |
+| `EXPIRED` | 결제 만료 |
+
+**Error Response**
+
+| 상황 | 상태 코드 | 메시지 |
+|------|-----------|--------|
+| size가 50 초과 | `400 Bad Request` | 최대 조회 가능 수는 50개입니다. |
+| 유효하지 않은 status 값 | `400 Bad Request` | 유효하지 않은 상태값입니다. |
+
+---
+
 ## API 목록 요약
 
 | 메서드 | 경로 | 설명 | 인증 |
@@ -1695,3 +1788,4 @@ POST /api/subscriptions/refund
 | POST | `/api/subscriptions/cancel` | 구독 해지 | O |
 | POST | `/api/subscriptions/resume` | 구독 재개 | O |
 | POST | `/api/subscriptions/refund` | 구독 취소 (1일 이내 환불) | O |
+| GET | `/api/payment-history` | 결제 이력 목록 조회 | O |

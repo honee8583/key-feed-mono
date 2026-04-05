@@ -15,6 +15,8 @@ export interface UiState {
     isPaymentMethodOpen: boolean;
     isSubscriptionMounted: boolean;
     isSubscriptionOpen: boolean;
+    isPaymentHistoryMounted: boolean;
+    isPaymentHistoryOpen: boolean;
 
     openSearch: () => void;
     closeSearch: () => void;
@@ -43,6 +45,10 @@ export interface UiState {
     openSubscriptionManage: () => void;
     closeSubscriptionManage: () => void;
     unmountSubscriptionManage: () => void;
+
+    openPaymentHistory: () => void;
+    closePaymentHistory: () => void;
+    unmountPaymentHistory: () => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -60,6 +66,8 @@ export const useUiStore = create<UiState>((set) => ({
     isPaymentMethodOpen: false,
     isSubscriptionMounted: false,
     isSubscriptionOpen: false,
+    isPaymentHistoryMounted: false,
+    isPaymentHistoryOpen: false,
 
     openSearch: () => set({ isSearchMounted: true, isSearchOpen: true }),
     closeSearch: () => set({ isSearchOpen: false }),
@@ -88,4 +96,8 @@ export const useUiStore = create<UiState>((set) => ({
     openSubscriptionManage: () => set({ isSubscriptionMounted: true, isSubscriptionOpen: true }),
     closeSubscriptionManage: () => set({ isSubscriptionOpen: false }),
     unmountSubscriptionManage: () => set({ isSubscriptionMounted: false }),
+
+    openPaymentHistory: () => set({ isPaymentHistoryMounted: true, isPaymentHistoryOpen: true }),
+    closePaymentHistory: () => set({ isPaymentHistoryOpen: false }),
+    unmountPaymentHistory: () => set({ isPaymentHistoryMounted: false }),
 }));

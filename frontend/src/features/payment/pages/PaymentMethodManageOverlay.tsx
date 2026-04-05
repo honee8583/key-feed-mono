@@ -22,7 +22,7 @@ const SUBSCRIPTION_STATUS_LABEL: Record<string, { text: string; className: strin
 };
 
 export function PaymentMethodManageOverlay() {
-    const { isPaymentMethodOpen, closePaymentMethod, unmountPaymentMethod } = useUiStore();
+    const { isPaymentMethodOpen, closePaymentMethod, unmountPaymentMethod, openPaymentHistory } = useUiStore();
     const overlayRef = useRef<HTMLDivElement>(null);
     const { contextSafe } = useGSAP({ scope: overlayRef });
 
@@ -248,7 +248,10 @@ export function PaymentMethodManageOverlay() {
                     </div>
 
                     {/* 결제 내역 */}
-                    <button className="w-full bg-white rounded-2xl px-5 py-4 border border-slate-100 shadow-sm flex items-center justify-between active:scale-[0.98] transition-transform">
+                    <button
+                        onClick={openPaymentHistory}
+                        className="w-full bg-white rounded-2xl px-5 py-4 border border-slate-100 shadow-sm flex items-center justify-between active:scale-[0.98] transition-transform"
+                    >
                         <span className="text-[13px] font-bold text-slate-700">결제 내역 보기</span>
                         <ChevronRight size={16} className="text-slate-300" />
                     </button>
