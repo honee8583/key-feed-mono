@@ -6,6 +6,7 @@ import com.keyfeed.keyfeedmonolithic.domain.payment.exception.PaymentFailedExcep
 import com.keyfeed.keyfeedmonolithic.domain.payment.exception.TossAuthException;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.request.TossBillingChargeRequest;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.request.TossBillingIssueRequest;
+import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.request.TossPaymentCancelRequest;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossBillingChargeResponse;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossBillingIssueResponse;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossErrorResponse;
@@ -31,6 +32,7 @@ public class TossPaymentsClient {
 
     private static final String PATH_BILLING_ISSUE = "/v1/billing/authorizations/issue";
     private static final String PATH_BILLING = "/v1/billing/{billingKey}";
+    private static final String PATH_PAYMENT_CANCEL = "/v1/payments/{paymentKey}/cancel";
 
     private static final String ERR_INVALID_CARD_EXPIRATION = "INVALID_CARD_EXPIRATION";
     private static final String ERR_CARD_PROCESSING_ERROR = "CARD_PROCESSING_ERROR";
@@ -61,6 +63,15 @@ public class TossPaymentsClient {
                 .buildAndExpand(billingKey)
                 .toUri();
         return exchange(uri, HttpMethod.POST, request, TossBillingChargeResponse.class);
+    }
+
+    // 결제 취소: 결제 건을 취소하고 환불을 처리한다
+    public void cancelPayment(String paymentKey, TossPaymentCancelRequest request) {
+        URI uri = UriComponentsBuilder.fromUriString(properties.getBaseUrl())
+                .path(PATH_PAYMENT_CANCEL)
+                .buildAndExpand(paymentKey)
+                .toUri();
+        exchange(uri, HttpMethod.POST, request, Void.class);
     }
 
     // 빌링키 삭제: 사용자가 결제 수단을 삭제할 때 빌링키를 만료시킨다

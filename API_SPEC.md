@@ -1408,6 +1408,246 @@ PATCH /api/payment-methods/{methodId}/default
 
 ---
 
+## 9. 구독 (Subscriptions)
+
+> Base Path: `/api/subscriptions` — **JWT 인증 필요**
+
+---
+
+### 9-1. 구독 시작
+
+```
+POST /api/subscriptions/start
+```
+
+**Request Body**
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| `methodId` | Long | O | 결제에 사용할 결제 수단 ID |
+
+```json
+{
+  "methodId": 1
+}
+```
+
+**동작 설명**
+
+- 등록된 결제 수단의 빌링키로 첫 결제(9,900원)를 즉시 실행합니다.
+- 결제 성공 시에만 구독 레코드가 생성됩니다.
+- 중복 결제 방지를 위해 `payment_history`에 READY 상태로 선저장 후 결제를 진행합니다.
+
+**Response** `200 OK`
+
+```json
+{
+  "status": 200,
+  "message": "구독이 시작되었습니다.",
+  "data": {
+    "subscriptionId": 1,
+    "status": "ACTIVE",
+    "price": 9900,
+    "nextBillingAt": "2024-02-15T10:30:00",
+    "expiredAt": "2024-02-15T10:30:00"
+  }
+}
+```
+
+**Error Response**
+
+| 상황 | 상태 코드 | 메시지 |
+|------|-----------|--------|
+| 이미 ACTIVE 구독 존재 | `409 Conflict` | 이미 구독 중입니다. |
+| 존재하지 않는 결제 수단 | `404 Not Found` | 결제 수단을 찾을 수 없습니다. |
+| 토스 결제 실패 | `402 Payment Required` | 결제 처리에 실패했습니다. |
+
+---
+
+### 9-2. 내 구독 상태 조회
+
+```
+GET /api/subscriptions/me
+```
+
+**Request** : 없음 (JWT에서 userId 추출)
+
+**동작 설명**
+
+- 가장 최근 구독 정보를 반환합니다.
+- 구독이 없는 경우 `status: "NONE"`으로 반환합니다.
+
+**Response** `200 OK`
+
+```json
+{
+  "status": 200,
+  "message": "구독 상태 조회에 성공했습니다.",
+  "data": {
+    "subscriptionId": 1,
+    "status": "ACTIVE",
+    "price": 9900,
+    "startedAt": "2024-01-15T10:30:00",
+    "nextBillingAt": "2024-02-15T10:30:00",
+    "expiredAt": "2024-02-15T10:30:00",
+    "canceledAt": null,
+    "retryCount": 0,
+    "providerName": "신한",
+    "displayNumber": "4330****0000"
+  }
+}
+```
+
+**구독 없는 경우**
+
+```json
+{
+  "status": 200,
+  "message": "구독 상태 조회에 성공했습니다.",
+  "data": {
+    "subscriptionId": null,
+    "status": "NONE"
+  }
+}
+```
+
+**status 값 목록**
+
+| 값 | 설명 |
+|----|------|
+| `NONE` | 구독 없음 |
+| `ACTIVE` | 구독 활성 |
+| `PAUSED` | 결제 실패로 일시 정지 |
+| `CANCELED` | 해지 신청 (만료일까지 서비스 유지) |
+| `REFUNDED` | 결제일 1일 이내 즉시 취소 및 환불 완료 |
+| `INACTIVE` | 만료일 도래로 비활성화 |
+
+---
+
+### 9-3. 구독 해지
+
+```
+POST /api/subscriptions/cancel
+```
+
+**Request** : 없음 (JWT에서 userId 추출)
+
+**동작 설명**
+
+- 즉시 중단이 아닌, 이미 결제된 만료일(`expiredAt`)까지 서비스를 유지합니다.
+- 토스 빌링키는 삭제하지 않아 재구독 시 재사용 가능합니다.
+- 만료일 이후 스케줄러가 자동으로 `INACTIVE`로 전환합니다.
+
+**Response** `200 OK`
+
+```json
+{
+  "status": 200,
+  "message": "구독이 해지되었습니다.",
+  "data": {
+    "status": "CANCELED",
+    "expiredAt": "2024-02-15T10:30:00",
+    "canceledAt": "2024-01-20T15:00:00"
+  }
+}
+```
+
+**Error Response**
+
+| 상황 | 상태 코드 | 메시지 |
+|------|-----------|--------|
+| ACTIVE 구독 없음 | `404 Not Found` | 활성화된 구독이 없습니다. |
+| 이미 해지된 구독 | `409 Conflict` | 이미 해지 신청된 구독입니다. |
+
+---
+
+### 9-4. 구독 재개
+
+```
+POST /api/subscriptions/resume
+```
+
+**Request Body**
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| `methodId` | Long | O | 재개에 사용할 결제 수단 ID |
+
+```json
+{
+  "methodId": 2
+}
+```
+
+**동작 설명**
+
+- 결제 실패로 PAUSED된 구독을 재개합니다.
+- 밀린 결제를 즉시 재시도합니다.
+- 재시도 성공 시 `retryCount`가 0으로 초기화되고 `nextBillingAt`이 재설정됩니다.
+- 재시도 실패 시 PAUSED 상태 유지, `payment_history` FAILED 기록.
+
+**Response** `200 OK`
+
+```json
+{
+  "status": 200,
+  "message": "구독이 재개되었습니다.",
+  "data": {
+    "subscriptionId": 1,
+    "status": "ACTIVE",
+    "nextBillingAt": "2024-02-20T10:30:00"
+  }
+}
+```
+
+**Error Response**
+
+| 상황 | 상태 코드 | 메시지 |
+|------|-----------|--------|
+| PAUSED 구독 없음 | `404 Not Found` | 일시 정지된 구독이 없습니다. |
+| 존재하지 않는 결제 수단 | `404 Not Found` | 결제 수단을 찾을 수 없습니다. |
+| 재시도 결제 실패 | `402 Payment Required` | 결제 처리에 실패했습니다. |
+
+---
+
+### 9-5. 구독 취소 (즉시 환불)
+
+```
+POST /api/subscriptions/refund
+```
+
+**Request** : 없음 (JWT에서 userId 추출)
+
+**동작 설명**
+
+- 결제일로부터 **1일 이내**에만 취소 가능합니다.
+- 토스페이먼츠 결제 취소 API를 호출하여 전액 환불 처리합니다.
+- 환불 성공 시 구독이 즉시 만료(`expiredAt` → 현재 시각)되고 상태가 `REFUNDED`로 전환됩니다.
+
+**Response** `200 OK`
+
+```json
+{
+  "status": 200,
+  "message": "구독이 취소되었습니다. 환불이 처리됩니다.",
+  "data": {
+    "subscriptionId": 1,
+    "status": "REFUNDED",
+    "canceledAt": "2024-01-15T11:00:00"
+  }
+}
+```
+
+**Error Response**
+
+| 상황 | 상태 코드 | 메시지 |
+|------|-----------|--------|
+| ACTIVE 구독 없음 | `404 Not Found` | 활성화된 구독이 없습니다. |
+| 결제일로부터 1일 초과 | `422 Unprocessable Entity` | 결제일로부터 1일이 지나 취소할 수 없습니다. |
+| 토스 환불 API 실패 | `502 Bad Gateway` | 환불 처리에 실패했습니다. |
+
+---
+
 ## API 목록 요약
 
 | 메서드 | 경로 | 설명 | 인증 |
@@ -1450,3 +1690,8 @@ PATCH /api/payment-methods/{methodId}/default
 | GET | `/api/payment-methods` | 결제 수단 목록 조회 | O |
 | DELETE | `/api/payment-methods/{methodId}` | 결제 수단 삭제 | O |
 | PATCH | `/api/payment-methods/{methodId}/default` | 기본 결제 수단 변경 | O |
+| POST | `/api/subscriptions/start` | 구독 시작 | O |
+| GET | `/api/subscriptions/me` | 내 구독 상태 조회 | O |
+| POST | `/api/subscriptions/cancel` | 구독 해지 | O |
+| POST | `/api/subscriptions/resume` | 구독 재개 | O |
+| POST | `/api/subscriptions/refund` | 구독 취소 (1일 이내 환불) | O |

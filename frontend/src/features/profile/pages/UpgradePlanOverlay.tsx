@@ -1,10 +1,11 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { loadTossPayments } from '@tosspayments/tosspayments-sdk';
-import { ArrowLeft, Bookmark, Folder, Star, Zap, CheckCircle2, Crown, Sparkles, Tag } from 'lucide-react';
+import { ArrowLeft, Bookmark, Folder, Star, Zap, CheckCircle2, Crown, Sparkles, Tag, Loader2 } from 'lucide-react';
 import { useUiStore } from '@/stores/uiStore';
-import { getCustomerKey } from '@/features/payment/api/paymentApi';
+import { getCustomerKey, usePaymentMethods } from '@/features/payment/api/paymentApi';
+import { useStartSubscription } from '@/features/payment/api/subscriptionApi';
 
 const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY || "test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq";
 
@@ -21,29 +22,48 @@ export function UpgradePlanOverlay() {
     const overlayRef = useRef<HTMLDivElement>(null);
     const { contextSafe } = useGSAP({ scope: overlayRef });
 
+    const [isLoading, setIsLoading] = useState(false);
+    const { data: methods } = usePaymentMethods();
+    const { mutateAsync: startSubscription } = useStartSubscription();
+
     const handleStartNow = async () => {
+        setIsLoading(true);
         try {
-            const customerKey = await getCustomerKey();
-            console.log('[Toss] customerKey:', customerKey);
-            const tossPayments = await loadTossPayments(clientKey);
-            const payment = tossPayments.payment({ customerKey });
-            await payment.requestBillingAuth({
-                method: "CARD",
-                successUrl: window.location.origin + "/payment/callback",
-                failUrl: window.location.origin + "/payment/callback?fail=true",
-            });
-        } catch (error) {
-            console.error("결제창 연동 오류", error);
-            alert("결제 창을 불러올 수 없습니다.");
+            const defaultMethod = methods?.find((m) => m.isDefault) ?? methods?.[0];
+
+            if (defaultMethod) {
+                // 결제 수단이 있으면 바로 구독 시작
+                await startSubscription(defaultMethod.methodId);
+                closeUpgradePlan();
+            } else {
+                // 결제 수단이 없으면 토스 카드 등록으로 이동 (등록 후 자동 구독)
+                const customerKey = await getCustomerKey();
+                console.log('[Toss] customerKey:', customerKey);
+                const tossPayments = await loadTossPayments(clientKey);
+                const payment = tossPayments.payment({ customerKey });
+                await payment.requestBillingAuth({
+                    method: "CARD",
+                    successUrl: window.location.origin + "/payment/callback?action=subscribe",
+                    failUrl: window.location.origin + "/payment/callback?fail=true",
+                });
+            }
+        } catch (err: any) {
+            const msg = err?.response?.data?.message;
+            if (msg) {
+                alert(msg);
+            } else {
+                alert("처리 중 오류가 발생했습니다.");
+            }
+        } finally {
+            setIsLoading(false);
         }
     };
 
     useEffect(() => {
         contextSafe(() => {
             if (isUpgradeOpen) {
-                // Fade and slight scale intro to mimic AnimatePresence screen/fade transition
-                gsap.fromTo(overlayRef.current, 
-                    { opacity: 0, scale: 0.98, y: 15 }, 
+                gsap.fromTo(overlayRef.current,
+                    { opacity: 0, scale: 0.98, y: 15 },
                     { opacity: 1, scale: 1, y: 0, duration: 0.35, ease: "power2.out" }
                 );
             } else {
@@ -114,14 +134,12 @@ export function UpgradePlanOverlay() {
                 <div className="bg-[#1a202c] rounded-[32px] p-8 pb-10 text-center text-white relative overflow-hidden shadow-2xl border border-slate-800/50">
                     <div className="absolute top-0 right-0 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
                     <div className="absolute bottom-0 left-0 w-40 h-40 bg-orange-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
-                    
                     <div className="relative z-10">
                         <div className="flex items-end justify-center gap-1 mb-2">
                             <span className="text-[2.25rem] leading-[1] font-black tracking-tighter">₩9,900</span>
                             <span className="text-xs font-bold text-slate-400 mb-1">/월</span>
                         </div>
                         <p className="text-[10px] font-medium text-slate-400 opacity-80 mb-6">언제든지 취소 가능합니다</p>
-                        
                         <div className="flex items-center justify-center gap-4 text-[10px] font-bold text-slate-300">
                             <div className="flex items-center gap-1.5">
                                 <CheckCircle2 size={12} className="text-emerald-400" />
@@ -138,10 +156,18 @@ export function UpgradePlanOverlay() {
             </div>
 
             <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-slate-100 via-slate-100/95 to-transparent pt-16 pb-8 px-6 z-20">
-                <button onClick={handleStartNow} className="w-full bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white rounded-full py-4 text-[13px] font-black tracking-widest shadow-xl shadow-orange-500/30 flex items-center justify-center gap-2 mb-3 active:scale-95 transition-transform">
-                    <Crown size={16} strokeWidth={3} /> 지금 시작하기
+                <button
+                    onClick={handleStartNow}
+                    disabled={isLoading}
+                    className="w-full bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white rounded-full py-4 text-[13px] font-black tracking-widest shadow-xl shadow-orange-500/30 flex items-center justify-center gap-2 mb-3 active:scale-95 transition-transform disabled:opacity-70"
+                >
+                    {isLoading
+                        ? <Loader2 size={16} className="animate-spin" />
+                        : <Crown size={16} strokeWidth={3} />
+                    }
+                    {isLoading ? '처리 중...' : '지금 시작하기'}
                 </button>
-                <button 
+                <button
                     onClick={closeUpgradePlan}
                     className="w-full bg-white/60 backdrop-blur-md text-slate-600 rounded-full py-4 text-[13px] font-black tracking-widest border border-white active:scale-95 transition-transform shadow-sm hover:bg-white"
                 >

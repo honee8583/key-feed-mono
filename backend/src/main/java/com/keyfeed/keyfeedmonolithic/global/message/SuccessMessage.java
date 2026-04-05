@@ -27,7 +27,12 @@ public enum SuccessMessage {
     PAYMENT_METHOD_LIST("결제 수단 목록 조회에 성공했습니다."),
     PAYMENT_METHOD_DELETED("결제 수단이 삭제되었습니다."),
     PAYMENT_METHOD_DEFAULT_CHANGED("기본 결제 수단이 변경되었습니다."),
-    CUSTOMER_KEY_ISSUED("고객 키가 발급되었습니다.");
+    CUSTOMER_KEY_ISSUED("고객 키가 발급되었습니다."),
+    SUBSCRIPTION_STARTED("구독이 시작되었습니다."),
+    SUBSCRIPTION_STATUS_READ("구독 상태 조회에 성공했습니다."),
+    SUBSCRIPTION_CANCELED("구독이 해지되었습니다."),
+    SUBSCRIPTION_RESUMED("구독이 재개되었습니다."),
+    SUBSCRIPTION_REFUNDED("구독이 취소되었습니다. 환불이 처리됩니다.");
 
     private final String message;
 }

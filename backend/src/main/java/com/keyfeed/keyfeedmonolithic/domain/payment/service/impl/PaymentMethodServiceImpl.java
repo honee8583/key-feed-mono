@@ -159,9 +159,10 @@ public class PaymentMethodServiceImpl implements PaymentMethodService {
                 userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.PAUSED));
 
         for (Subscription subscription : subscriptions) {
-            subscription.updatePaymentMethod(paymentMethod);
             if (subscription.getStatus() == SubscriptionStatus.PAUSED) {
-                subscription.resume();
+                subscription.resume(subscription.getNextBillingAt(), paymentMethod);
+            } else {
+                subscription.updatePaymentMethod(paymentMethod);
             }
         }
     }

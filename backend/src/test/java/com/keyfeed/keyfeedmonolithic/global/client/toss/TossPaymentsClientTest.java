@@ -42,6 +42,7 @@ class TossPaymentsClientTest {
     @Test
     @DisplayName("빌링키 발급 성공 - 200 응답을 TossBillingIssueResponse로 파싱한다")
     void issueBillingKey_success() {
+        // given
         stubFor(post(urlEqualTo("/v1/billing/authorizations/issue"))
                 .willReturn(aResponse()
                         .withStatus(200)
@@ -61,8 +62,10 @@ class TossPaymentsClientTest {
                 .customerKey("user_001")
                 .build();
 
+        // when
         TossBillingIssueResponse response = client.issueBillingKey(request);
 
+        // then
         assertThat(response.getBillingKey()).isEqualTo("billing_abc123");
         assertThat(response.getMethod()).isEqualTo("카드");
         assertThat(response.getCardCompany()).isEqualTo("신한");
@@ -72,6 +75,7 @@ class TossPaymentsClientTest {
     @Test
     @DisplayName("빌링키 발급 실패 - INVALID_CARD_EXPIRATION → InvalidPaymentMethodException")
     void issueBillingKey_invalidCardExpiration() {
+        // given
         stubFor(post(urlEqualTo("/v1/billing/authorizations/issue"))
                 .willReturn(aResponse()
                         .withStatus(400)
@@ -85,6 +89,7 @@ class TossPaymentsClientTest {
                 .customerKey("user_001")
                 .build();
 
+        // when & then
         assertThatThrownBy(() -> client.issueBillingKey(request))
                 .isInstanceOf(InvalidPaymentMethodException.class);
     }
@@ -92,6 +97,7 @@ class TossPaymentsClientTest {
     @Test
     @DisplayName("빌링키 발급 실패 - UNAUTHORIZED_KEY → TossAuthException")
     void issueBillingKey_unauthorizedKey() {
+        // given
         stubFor(post(urlEqualTo("/v1/billing/authorizations/issue"))
                 .willReturn(aResponse()
                         .withStatus(400)
@@ -105,6 +111,7 @@ class TossPaymentsClientTest {
                 .customerKey("user_001")
                 .build();
 
+        // when & then
         assertThatThrownBy(() -> client.issueBillingKey(request))
                 .isInstanceOf(TossAuthException.class);
     }
@@ -114,6 +121,7 @@ class TossPaymentsClientTest {
     @Test
     @DisplayName("결제 실행 성공 - 200 응답, status=DONE 확인")
     void chargeBilling_success() {
+        // given
         stubFor(post(urlMatching("/v1/billing/.*"))
                 .willReturn(aResponse()
                         .withStatus(200)
@@ -136,8 +144,10 @@ class TossPaymentsClientTest {
                 .orderName("프리미엄 구독 1개월")
                 .build();
 
+        // when
         TossBillingChargeResponse response = client.chargeBilling("billing_abc123", request);
 
+        // then
         assertThat(response.getPaymentKey()).isEqualTo("pay_key_xyz");
         assertThat(response.getStatus()).isEqualTo("DONE");
         assertThat(response.getApprovedAt()).isNotNull();
@@ -146,6 +156,7 @@ class TossPaymentsClientTest {
     @Test
     @DisplayName("결제 실행 실패 - CARD_PROCESSING_ERROR → PaymentFailedException")
     void chargeBilling_cardProcessingError() {
+        // given
         stubFor(post(urlMatching("/v1/billing/.*"))
                 .willReturn(aResponse()
                         .withStatus(400)
@@ -161,6 +172,7 @@ class TossPaymentsClientTest {
                 .orderName("프리미엄 구독 1개월")
                 .build();
 
+        // when & then
         assertThatThrownBy(() -> client.chargeBilling("billing_abc123", request))
                 .isInstanceOf(PaymentFailedException.class);
     }
@@ -168,6 +180,7 @@ class TossPaymentsClientTest {
     @Test
     @DisplayName("결제 실행 실패 - EXCEED_MAX_CARD_INSTALLMENT_PLAN → PaymentFailedException")
     void chargeBilling_exceedInstallment() {
+        // given
         stubFor(post(urlMatching("/v1/billing/.*"))
                 .willReturn(aResponse()
                         .withStatus(400)
@@ -183,6 +196,7 @@ class TossPaymentsClientTest {
                 .orderName("프리미엄 구독 1개월")
                 .build();
 
+        // when & then
         assertThatThrownBy(() -> client.chargeBilling("billing_abc123", request))
                 .isInstanceOf(PaymentFailedException.class);
     }
@@ -190,6 +204,7 @@ class TossPaymentsClientTest {
     @Test
     @DisplayName("결제 실행 실패 - 네트워크 타임아웃 → InternalApiRequestException")
     void chargeBilling_networkTimeout() {
+        // given
         stubFor(post(urlMatching("/v1/billing/.*"))
                 .willReturn(aResponse()
                         .withStatus(200)
@@ -202,6 +217,7 @@ class TossPaymentsClientTest {
                 .orderName("프리미엄 구독 1개월")
                 .build();
 
+        // when & then
         assertThatThrownBy(() -> client.chargeBilling("billing_abc123", request))
                 .isInstanceOf(InternalApiRequestException.class);
     }
@@ -211,10 +227,12 @@ class TossPaymentsClientTest {
     @Test
     @DisplayName("빌링키 삭제 성공 - 200 응답, 예외 없음")
     void deleteBillingKey_success() {
+        // given
         stubFor(delete(urlMatching("/v1/billing/.*"))
                 .willReturn(aResponse()
                         .withStatus(200)));
 
+        // when & then
         assertThatCode(() -> client.deleteBillingKey("billing_abc123"))
                 .doesNotThrowAnyException();
     }
@@ -222,6 +240,7 @@ class TossPaymentsClientTest {
     @Test
     @DisplayName("빌링키 삭제 실패 - 404 미처리 코드 → InternalApiRequestException")
     void deleteBillingKey_notFound() {
+        // given
         stubFor(delete(urlMatching("/v1/billing/.*"))
                 .willReturn(aResponse()
                         .withStatus(404)
@@ -230,6 +249,7 @@ class TossPaymentsClientTest {
                                 {"code": "NOT_FOUND_BILLING_KEY", "message": "존재하지 않는 빌링키입니다."}
                                 """)));
 
+        // when & then
         assertThatThrownBy(() -> client.deleteBillingKey("invalid_billing_key"))
                 .isInstanceOf(InternalApiRequestException.class);
     }
@@ -239,6 +259,7 @@ class TossPaymentsClientTest {
     @Test
     @DisplayName("알 수 없는 에러 코드 - InternalApiRequestException fallback")
     void handleClientError_unknownCode() {
+        // given
         stubFor(post(urlEqualTo("/v1/billing/authorizations/issue"))
                 .willReturn(aResponse()
                         .withStatus(400)
@@ -252,6 +273,7 @@ class TossPaymentsClientTest {
                 .customerKey("user_001")
                 .build();
 
+        // when & then
         assertThatThrownBy(() -> client.issueBillingKey(request))
                 .isInstanceOf(InternalApiRequestException.class);
     }
@@ -259,6 +281,7 @@ class TossPaymentsClientTest {
     @Test
     @DisplayName("요청 헤더 검증 - Authorization Basic 헤더 포함 확인")
     void authorizationHeader_isBasicEncoded() {
+        // given
         stubFor(post(urlEqualTo("/v1/billing/authorizations/issue"))
                 .withHeader(HttpHeaders.AUTHORIZATION, matching("Basic .+"))
                 .willReturn(aResponse()
@@ -273,8 +296,10 @@ class TossPaymentsClientTest {
                 .customerKey("user_001")
                 .build();
 
+        // when
         client.issueBillingKey(request);
 
+        // then
         verify(postRequestedFor(urlEqualTo("/v1/billing/authorizations/issue"))
                 .withHeader(HttpHeaders.AUTHORIZATION, matching("Basic .+")));
     }

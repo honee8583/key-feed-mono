@@ -1,5 +1,5 @@
 package com.keyfeed.keyfeedmonolithic.domain.payment.entity;
 
 public enum SubscriptionStatus {
-    ACTIVE, PAUSED, CANCELLED
+    ACTIVE, PAUSED, CANCELED, REFUNDED, INACTIVE
 }

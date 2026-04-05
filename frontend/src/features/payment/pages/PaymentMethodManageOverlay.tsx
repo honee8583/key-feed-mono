@@ -1,28 +1,50 @@
 import { useRef, useEffect } from 'react';
-import { ArrowLeft, Loader2, CreditCard, Trash2, PlusCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, CreditCard, Trash2, Plus, ChevronRight } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { loadTossPayments } from '@tosspayments/tosspayments-sdk';
 import { useUiStore } from '@/stores/uiStore';
 import { usePaymentMethods, useDeletePaymentMethod, useSetDefaultPaymentMethod, getCustomerKey } from '../api/paymentApi';
+import { useMySubscription, useCancelSubscription, useRefundSubscription } from '../api/subscriptionApi';
 
 const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY || "test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq";
+
+function formatDate(dateStr?: string | null): string {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const SUBSCRIPTION_STATUS_LABEL: Record<string, { text: string; className: string }> = {
+    ACTIVE:   { text: '구독 중',   className: 'bg-emerald-100 text-emerald-600' },
+    CANCELED: { text: '해지 예정', className: 'bg-amber-100 text-amber-600' },
+    PAUSED:   { text: '결제 실패', className: 'bg-rose-100 text-rose-500' },
+};
 
 export function PaymentMethodManageOverlay() {
     const { isPaymentMethodOpen, closePaymentMethod, unmountPaymentMethod } = useUiStore();
     const overlayRef = useRef<HTMLDivElement>(null);
     const { contextSafe } = useGSAP({ scope: overlayRef });
 
-    const { data: methods, status } = usePaymentMethods();
+    const { data: methods, status: methodStatus } = usePaymentMethods();
     const { mutate: deleteMethod, isPending: isDeleting } = useDeletePaymentMethod();
     const { mutate: setDefaultMethod, isPending: isSettingDefault } = useSetDefaultPaymentMethod();
+    const { data: subscription } = useMySubscription();
+    const { mutate: cancelSub, isPending: isCanceling } = useCancelSubscription();
+    const { mutate: refundSub, isPending: isRefunding } = useRefundSubscription();
 
     useEffect(() => {
         contextSafe(() => {
             if (isPaymentMethodOpen) {
-                gsap.to(overlayRef.current, { x: 0, opacity: 1, duration: 0.4, ease: "power3.out" });
+                gsap.to(overlayRef.current, { x: 0, opacity: 1, duration: 0.4, ease: 'power3.out' });
             } else {
-                gsap.to(overlayRef.current, { x: "100%", opacity: 0, duration: 0.3, ease: "power2.in", onComplete: unmountPaymentMethod });
+                gsap.to(overlayRef.current, {
+                    x: '100%',
+                    opacity: 0,
+                    duration: 0.3,
+                    ease: 'power2.in',
+                    onComplete: unmountPaymentMethod,
+                });
             }
         })();
     }, [isPaymentMethodOpen, unmountPaymentMethod, contextSafe]);
@@ -33,25 +55,55 @@ export function PaymentMethodManageOverlay() {
             console.log('[Toss] customerKey:', customerKey);
             const tossPayments = await loadTossPayments(clientKey);
             const payment = tossPayments.payment({ customerKey });
-            
-            // 토스페이먼츠창 호의 (성공/에러 리다이렉트)
             await payment.requestBillingAuth({
-                method: "CARD",
-                successUrl: window.location.origin + "/payment/callback",
-                failUrl: window.location.origin + "/payment/callback?fail=true",
+                method: 'CARD',
+                successUrl: window.location.origin + '/payment/callback',
+                failUrl: window.location.origin + '/payment/callback?fail=true',
             });
         } catch (error) {
-            console.error("결제창 연동 오류", error);
-            alert("결제 창을 불러올 수 없습니다.");
+            console.error('결제창 연동 오류', error);
+            alert('결제 창을 불러올 수 없습니다.');
         }
     };
 
+    const isWithin1Day = (() => {
+        if (!subscription?.startedAt) return false;
+        return Date.now() - new Date(subscription.startedAt).getTime() < 24 * 60 * 60 * 1000;
+    })();
+
+    const handleCancelSubscription = () => {
+        if (!confirm('구독을 해지하시겠습니까?\n만료일까지 서비스는 계속 이용 가능합니다.')) return;
+        cancelSub(undefined, {
+            onError: (err: any) => {
+                alert(err?.response?.data?.message || '구독 해지에 실패했습니다.');
+            },
+        });
+    };
+
+    const handleRefundSubscription = () => {
+        if (!confirm('구독을 즉시 취소하고 환불받으시겠습니까?')) return;
+        refundSub(undefined, {
+            onError: (err: any) => {
+                alert(err?.response?.data?.message || '구독 취소에 실패했습니다.');
+            },
+        });
+    };
+
+    const isSubscribed =
+        subscription?.status === 'ACTIVE' ||
+        subscription?.status === 'CANCELED' ||
+        subscription?.status === 'PAUSED';
+
+    const statusConfig = subscription?.status ? SUBSCRIPTION_STATUS_LABEL[subscription.status] : null;
+
     return (
-        <div 
+        <div
             ref={overlayRef}
             className="absolute inset-0 z-[100] bg-[#F8FAFC] flex justify-center translate-x-full opacity-0 overflow-y-auto"
         >
             <div className="w-full max-w-[480px] flex flex-col min-h-screen">
+
+                {/* Header */}
                 <div className="flex items-center gap-3 px-5 pt-10 pb-6 sticky top-0 bg-[#F8FAFC]/80 backdrop-blur-xl z-10">
                     <button
                         onClick={closePaymentMethod}
@@ -59,88 +111,148 @@ export function PaymentMethodManageOverlay() {
                     >
                         <ArrowLeft size={20} />
                     </button>
-                    <h2 className="text-[18px] font-black text-slate-800 tracking-tight">결제 수단 관리</h2>
+                    <h2 className="text-[18px] font-black text-slate-800 tracking-tight">결제 및 구독</h2>
                 </div>
 
-                <div className="px-5 pb-24 flex-1">
-                    <button
-                        onClick={handleAddCard}
-                        className="w-full bg-white border border-slate-200 border-dashed rounded-3xl p-5 mb-6 flex flex-col items-center justify-center gap-3 active:scale-[0.98] transition-transform group shadow-sm hover:border-indigo-300 hover:bg-indigo-50/30"
-                    >
-                        <div className="w-12 h-12 bg-slate-50 group-hover:bg-white rounded-full flex items-center justify-center text-indigo-500 shadow-inner group-hover:shadow-lg group-hover:shadow-indigo-500/20 transition-all">
-                            <PlusCircle size={24} strokeWidth={2} />
-                        </div>
-                        <span className="text-sm font-bold text-slate-700">새로운 결제 수단 등록</span>
-                    </button>
+                <div className="px-5 pb-24 flex-1 space-y-5">
 
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2 mb-3">
-                        등록된 카드
-                    </h4>
+                    {/* 현재 플랜 */}
+                    {isSubscribed && statusConfig && (
+                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                            <div className="flex items-center justify-between mb-3">
+                                <span className="text-[11px] font-bold text-slate-400">현재 플랜</span>
+                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${statusConfig.className}`}>
+                                    {statusConfig.text}
+                                </span>
+                            </div>
+                            <p className="text-[20px] font-black text-slate-800 tracking-tight mb-1">플랜 월간</p>
+                            <p className="text-sm font-bold text-slate-600">
+                                ₩{(subscription?.price ?? 9900).toLocaleString()} / 월
+                            </p>
+                            {subscription?.status === 'ACTIVE' && subscription.nextBillingAt && (
+                                <p className="text-[11px] text-slate-400 font-medium mt-1">
+                                    다음 결제: {formatDate(subscription.nextBillingAt)}
+                                </p>
+                            )}
+                            {subscription?.status === 'CANCELED' && subscription.expiredAt && (
+                                <p className="text-[11px] text-slate-400 font-medium mt-1">
+                                    만료일: {formatDate(subscription.expiredAt)}
+                                </p>
+                            )}
+                            {subscription?.status === 'ACTIVE' && (
+                                <div className="mt-3 flex justify-end">
+                                    {isWithin1Day ? (
+                                        <button
+                                            onClick={handleRefundSubscription}
+                                            disabled={isRefunding}
+                                            className="flex items-center gap-1 text-[11px] font-bold text-rose-400 hover:text-rose-500 transition-colors disabled:opacity-50"
+                                        >
+                                            {isRefunding && <Loader2 size={11} className="animate-spin" />}
+                                            구독 취소
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={handleCancelSubscription}
+                                            disabled={isCanceling}
+                                            className="flex items-center gap-1 text-[11px] font-bold text-rose-400 hover:text-rose-500 transition-colors disabled:opacity-50"
+                                        >
+                                            {isCanceling && <Loader2 size={11} className="animate-spin" />}
+                                            구독 해지
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
-                    {status === 'pending' ? (
-                        <div className="flex justify-center py-20">
-                            <Loader2 className="w-8 h-8 animate-spin text-slate-300" />
+                    {/* 결제 수단 */}
+                    <div>
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">결제 수단</span>
+                            <button
+                                onClick={handleAddCard}
+                                className="flex items-center gap-1 text-[11px] font-bold text-indigo-500 hover:text-indigo-600 transition-colors active:scale-95"
+                            >
+                                <Plus size={13} strokeWidth={2.5} />
+                                추가
+                            </button>
                         </div>
-                    ) : status === 'error' ? (
-                        <div className="text-center py-20 opacity-50">
-                            <p className="text-[12px] font-bold text-slate-500">조회에 실패했습니다.</p>
-                        </div>
-                    ) : methods && methods.length > 0 ? (
-                        <div className="space-y-3">
-                            {methods.map((method) => {
-                                const isPrimary = method.isDefault;
-                                return (
-                                    <div 
-                                        key={method.methodId} 
-                                        className={`bg-white rounded-[24px] p-5 shadow-sm border transition-colors ${isPrimary ? 'border-amber-400 shadow-[0_4px_20px_rgba(251,191,36,0.1)]' : 'border-slate-100 hover:border-slate-300'}`}
+
+                        {methodStatus === 'pending' ? (
+                            <div className="flex justify-center py-10">
+                                <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+                            </div>
+                        ) : methodStatus === 'error' ? (
+                            <div className="bg-white rounded-2xl p-5 border border-slate-100 text-center">
+                                <p className="text-[12px] font-bold text-slate-400">조회에 실패했습니다.</p>
+                            </div>
+                        ) : methods && methods.length > 0 ? (
+                            <div className="space-y-2">
+                                {methods.map((method) => (
+                                    <div
+                                        key={method.methodId}
+                                        className="bg-white rounded-2xl px-4 py-3.5 border border-slate-100 shadow-sm flex items-center justify-between"
                                     >
-                                        <div className="flex items-start justify-between mb-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-10 h-10 ${isPrimary ? 'bg-amber-100/50 text-amber-600' : 'bg-slate-50 text-slate-500'} rounded-xl flex items-center justify-center shadow-inner`}>
-                                                    <CreditCard size={18} />
-                                                </div>
-                                                <div>
-                                                    <div className="flex items-center gap-2 mb-0.5">
-                                                        <h3 className="text-sm font-bold text-slate-800">{method.providerName}</h3>
-                                                        {isPrimary && (
-                                                            <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[8px] font-black uppercase tracking-wider">Default</span>
-                                                        )}
-                                                    </div>
-                                                    <p className="text-[11px] font-bold text-slate-400 font-mono tracking-widest">
-                                                        {method.displayNumber}
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-indigo-500 flex items-center justify-center text-white shadow-sm shrink-0">
+                                                <CreditCard size={17} strokeWidth={2} />
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-0.5">
+                                                    <p className="text-[13px] font-black text-slate-800">
+                                                        {method.providerName ?? '카드'}
                                                     </p>
+                                                    {method.isDefault && (
+                                                        <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600">
+                                                            기본
+                                                        </span>
+                                                    )}
                                                 </div>
+                                                <p className="text-[11px] text-slate-400 font-mono tracking-wider">
+                                                    {method.displayNumber}
+                                                </p>
                                             </div>
                                         </div>
-                                        
-                                        <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4 mt-2">
-                                            {!isPrimary && (
+
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                            {!method.isDefault && (
                                                 <button
                                                     disabled={isSettingDefault}
                                                     onClick={() => setDefaultMethod(method.methodId)}
-                                                    className="px-3.5 py-1.5 bg-slate-50 text-slate-600 text-[10px] font-bold rounded-full hover:bg-slate-100 transition-colors border border-slate-200"
+                                                    className="text-[10px] font-bold text-slate-400 hover:text-slate-600 px-2.5 py-1.5 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-40"
                                                 >
-                                                    기본 수단으로 설정
+                                                    기본으로 설정
                                                 </button>
                                             )}
                                             <button
                                                 disabled={isDeleting}
-                                                onClick={() => deleteMethod(method.methodId)}
-                                                className="w-8 h-8 flex items-center justify-center bg-rose-50 text-rose-500 rounded-full hover:bg-rose-100 transition-colors border border-rose-100"
+                                                onClick={() => deleteMethod(method.methodId, {
+                                                    onError: (err: any) => {
+                                                        alert(err?.response?.data?.message || '결제 수단 삭제에 실패했습니다.');
+                                                    },
+                                                })}
+                                                className="w-7 h-7 flex items-center justify-center bg-rose-50 text-rose-400 rounded-lg hover:bg-rose-100 transition-colors disabled:opacity-40"
                                             >
-                                                <Trash2 size={14} />
+                                                <Trash2 size={13} />
                                             </button>
                                         </div>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    ) : (
-                        <div className="text-center py-20 opacity-40 flex flex-col items-center">
-                            <CreditCard size={40} className="mb-4 text-slate-300" strokeWidth={1.5} />
-                            <p className="text-[11px] font-bold text-slate-500">등록된 결제 수단이 없습니다.</p>
-                        </div>
-                    )}
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="bg-white rounded-2xl p-6 border border-slate-100 text-center">
+                                <CreditCard size={28} className="mx-auto mb-2 text-slate-200" strokeWidth={1.5} />
+                                <p className="text-[11px] font-bold text-slate-400">등록된 결제 수단이 없습니다.</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 결제 내역 */}
+                    <button className="w-full bg-white rounded-2xl px-5 py-4 border border-slate-100 shadow-sm flex items-center justify-between active:scale-[0.98] transition-transform">
+                        <span className="text-[13px] font-bold text-slate-700">결제 내역 보기</span>
+                        <ChevronRight size={16} className="text-slate-300" />
+                    </button>
+
                 </div>
             </div>
         </div>
