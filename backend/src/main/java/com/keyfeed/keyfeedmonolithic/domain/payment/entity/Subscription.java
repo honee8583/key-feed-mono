@@ -72,6 +72,10 @@ public class Subscription extends BaseTimeEntity {
         this.status = SubscriptionStatus.PAUSED;
     }
 
+    public void expire() {
+        this.status = SubscriptionStatus.INACTIVE;
+    }
+
     public void increaseRetryCount() {
         this.retryCount++;
     }
