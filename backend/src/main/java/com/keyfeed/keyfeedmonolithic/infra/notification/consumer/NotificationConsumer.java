@@ -33,7 +33,7 @@ public class NotificationConsumer {
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
 
-    @Scheduled(fixedDelay = 500, scheduler = "notificationConsumerScheduler")
+//    @Scheduled(fixedDelay = 500, scheduler = "notificationConsumerScheduler")
     public void consume() {
         log.info("[NotificationConsumer] 컨텐츠를 소비하고 알림을 저장합니다.");
 

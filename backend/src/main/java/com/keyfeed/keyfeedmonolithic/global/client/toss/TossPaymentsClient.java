@@ -10,6 +10,7 @@ import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.request.TossPaymentC
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossBillingChargeResponse;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossBillingIssueResponse;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossErrorResponse;
+import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossPaymentQueryResponse;
 import com.keyfeed.keyfeedmonolithic.global.error.exception.InternalApiRequestException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -33,6 +34,7 @@ public class TossPaymentsClient {
     private static final String PATH_BILLING_ISSUE = "/v1/billing/authorizations/issue";
     private static final String PATH_BILLING = "/v1/billing/{billingKey}";
     private static final String PATH_PAYMENT_CANCEL = "/v1/payments/{paymentKey}/cancel";
+    private static final String PATH_PAYMENT_BY_ORDER = "/v1/payments/orders/{orderId}";
 
     private static final String ERR_INVALID_CARD_EXPIRATION = "INVALID_CARD_EXPIRATION";
     private static final String ERR_CARD_PROCESSING_ERROR = "CARD_PROCESSING_ERROR";
@@ -72,6 +74,15 @@ public class TossPaymentsClient {
                 .buildAndExpand(paymentKey)
                 .toUri();
         exchange(uri, HttpMethod.POST, request, Void.class);
+    }
+
+    // 결제 조회: orderId로 결제 건의 실제 처리 상태를 조회한다 (서버 재시작 시 READY 복구용)
+    public TossPaymentQueryResponse getPaymentByOrderId(String orderId) {
+        URI uri = UriComponentsBuilder.fromUriString(properties.getBaseUrl())
+                .path(PATH_PAYMENT_BY_ORDER)
+                .buildAndExpand(orderId)
+                .toUri();
+        return exchange(uri, HttpMethod.GET, null, TossPaymentQueryResponse.class);
     }
 
     // 빌링키 삭제: 사용자가 결제 수단을 삭제할 때 빌링키를 만료시킨다
