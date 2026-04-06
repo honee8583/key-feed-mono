@@ -8,11 +8,10 @@ import com.keyfeed.keyfeedmonolithic.domain.payment.exception.*;
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.PaymentHistoryRepository;
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.PaymentMethodRepository;
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.SubscriptionRepository;
+import com.keyfeed.keyfeedmonolithic.domain.payment.service.BillingExecutor;
 import com.keyfeed.keyfeedmonolithic.domain.payment.service.SubscriptionService;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.TossPaymentsClient;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.request.TossPaymentCancelRequest;
-import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.request.TossBillingChargeRequest;
-import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossBillingChargeResponse;
 import com.keyfeed.keyfeedmonolithic.global.error.exception.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,10 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Random;
 
 @Slf4j
 @Service
@@ -39,6 +35,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private final PaymentHistoryRepository paymentHistoryRepository;
     private final UserRepository userRepository;
     private final TossPaymentsClient tossPaymentsClient;
+    private final BillingExecutor billingExecutor;
 
     @Override
     @Transactional
@@ -60,46 +57,11 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User", userId));
 
-        // 4. orderId 생성 ({userId}-{yyyyMMddHHmmss}-{난수4자리})
-        String orderId = generateOrderId(userId);
+        // 4. 결제 실행 (READY 선저장 → chargeBilling → markDone/markFailed)
+        ChargeResult result = billingExecutor.execute(user, paymentMethod, null, SUBSCRIPTION_ORDER_NAME, SUBSCRIPTION_PRICE);
 
-        // 5. payment_history INSERT (status: READY) — 서버 장애 시 중복 결제 방지 선저장
-        PaymentHistory history = PaymentHistory.builder()
-                .user(user)
-                .paymentMethod(paymentMethod)
-                .orderId(orderId)
-                .orderName(SUBSCRIPTION_ORDER_NAME)
-                .amount(SUBSCRIPTION_PRICE)
-                .status(PaymentHistoryStatus.READY)
-                .build();
-        paymentHistoryRepository.save(history);
-
-        // 6. 토스페이먼츠 빌링키 결제 실행
-        TossBillingChargeResponse chargeResponse;
-        try {
-            chargeResponse = tossPaymentsClient.chargeBilling(
-                    paymentMethod.getBillingKey(),
-                    TossBillingChargeRequest.builder()
-                            .customerKey(user.getCustomerKey())
-                            .amount(SUBSCRIPTION_PRICE)
-                            .orderId(orderId)
-                            .orderName(SUBSCRIPTION_ORDER_NAME)
-                            .customerEmail(user.getEmail())
-                            .customerName(user.getUsername())
-                            .taxFreeAmount(0)
-                            .build()
-            );
-        } catch (PaymentFailedException e) {
-            // 7. 결제 실패 시: payment_history UPDATE (status: FAILED), 구독 미생성
-            history.markFailed(e.getMessage());
-            throw e;
-        }
-
-        // 8. 결제 성공 시: payment_history UPDATE (status: DONE, paymentKey, approvedAt 저장)
+        // 5. subscription INSERT (status: ACTIVE, 만료일/다음 결제일: 현재 +1달)
         LocalDateTime now = LocalDateTime.now();
-        history.markDone(chargeResponse.getPaymentKey(), parseApprovedAt(chargeResponse.getApprovedAt()));
-
-        // 9. subscription INSERT (status: ACTIVE, 만료일/다음 결제일: 현재 +1달)
         Subscription subscription = Subscription.builder()
                 .user(user)
                 .paymentMethod(paymentMethod)
@@ -113,10 +75,10 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 .build();
         subscriptionRepository.save(subscription);
 
-        // 10. payment_history에 생성된 subscription 연결
-        history.linkSubscription(subscription);
+        // 6. payment_history에 생성된 subscription 연결
+        result.history().linkSubscription(subscription);
 
-        return SubscriptionStartResponseDto.from(subscription, history);
+        return SubscriptionStartResponseDto.from(subscription, result.history());
     }
 
     @Override
@@ -163,46 +125,10 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User", userId));
 
-        // 4. orderId 생성 ({userId}-{yyyyMMddHHmmss}-{난수4자리})
-        String orderId = generateOrderId(userId);
+        // 4. 밀린 결제 즉시 재시도 (READY 선저장 → chargeBilling → markDone/markFailed)
+        billingExecutor.execute(user, paymentMethod, subscription, SUBSCRIPTION_ORDER_NAME, SUBSCRIPTION_PRICE);
 
-        // 5. payment_history INSERT (status: READY) — 재시도 결제 선저장
-        PaymentHistory history = PaymentHistory.builder()
-                .user(user)
-                .paymentMethod(paymentMethod)
-                .subscription(subscription)
-                .orderId(orderId)
-                .orderName(SUBSCRIPTION_ORDER_NAME)
-                .amount(SUBSCRIPTION_PRICE)
-                .status(PaymentHistoryStatus.READY)
-                .build();
-        paymentHistoryRepository.save(history);
-
-        // 6. 밀린 결제 즉시 재시도
-        TossBillingChargeResponse chargeResponse;
-        try {
-            chargeResponse = tossPaymentsClient.chargeBilling(
-                    paymentMethod.getBillingKey(),
-                    TossBillingChargeRequest.builder()
-                            .customerKey(user.getCustomerKey())
-                            .amount(SUBSCRIPTION_PRICE)
-                            .orderId(orderId)
-                            .orderName(SUBSCRIPTION_ORDER_NAME)
-                            .customerEmail(user.getEmail())
-                            .customerName(user.getUsername())
-                            .taxFreeAmount(0)
-                            .build()
-            );
-        } catch (PaymentFailedException e) {
-            // 7. 결제 실패 시: payment_history UPDATE (status: FAILED), PAUSED 상태 유지
-            history.markFailed(e.getMessage());
-            throw e;
-        }
-
-        // 8. 결제 성공 시: payment_history UPDATE (status: DONE)
-        history.markDone(chargeResponse.getPaymentKey(), parseApprovedAt(chargeResponse.getApprovedAt()));
-
-        // 9. subscription UPDATE (status: ACTIVE, 새 결제 수단 연결, retryCount: 0, nextBillingAt: 현재 +1달)
+        // 5. subscription UPDATE (status: ACTIVE, 새 결제 수단 연결, retryCount: 0, nextBillingAt: 현재 +1달)
         subscription.resume(LocalDateTime.now().plusMonths(1), paymentMethod);
 
         return SubscriptionResumeResponseDto.from(subscription);
@@ -246,23 +172,5 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         subscription.refund();
 
         return SubscriptionRefundResponseDto.from(subscription);
-    }
-
-    private String generateOrderId(Long userId) {
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        int random = new Random().nextInt(10000);
-        return String.format("%d-%s-%04d", userId, timestamp, random);
-    }
-
-    private LocalDateTime parseApprovedAt(String approvedAt) {
-        if (approvedAt == null) {
-            return null;
-        }
-        try {
-            return OffsetDateTime.parse(approvedAt).toLocalDateTime();
-        } catch (Exception e) {
-            log.warn("approvedAt 파싱 실패: {}", approvedAt);
-            return null;
-        }
     }
 }

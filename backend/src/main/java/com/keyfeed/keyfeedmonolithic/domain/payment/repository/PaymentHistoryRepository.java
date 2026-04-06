@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,6 +16,8 @@ public interface PaymentHistoryRepository extends JpaRepository<PaymentHistory, 
     Optional<PaymentHistory> findByOrderId(String orderId);
 
     Optional<PaymentHistory> findTopBySubscriptionIdAndStatusOrderByCreatedAtDesc(Long subscriptionId, PaymentHistoryStatus status);
+
+    List<PaymentHistory> findByStatusAndCreatedAtBefore(PaymentHistoryStatus status, LocalDateTime dateTime);
 
     @Query("SELECT ph FROM PaymentHistory ph WHERE ph.user.id = :userId AND ph.status != :excludeStatus AND (:cursorId IS NULL OR ph.id < :cursorId) ORDER BY ph.id DESC")
     List<PaymentHistory> findByUserIdWithCursor(@Param("userId") Long userId,

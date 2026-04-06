@@ -67,4 +67,20 @@ public class Subscription extends BaseTimeEntity {
         this.canceledAt = LocalDateTime.now();
         this.expiredAt = LocalDateTime.now();
     }
+
+    public void pause() {
+        this.status = SubscriptionStatus.PAUSED;
+    }
+
+    public void increaseRetryCount() {
+        this.retryCount++;
+    }
+
+    public void resetRetryCount() {
+        this.retryCount = 0;
+    }
+
+    public void updateNextBillingAt(LocalDateTime nextBillingAt) {
+        this.nextBillingAt = nextBillingAt;
+    }
 }
