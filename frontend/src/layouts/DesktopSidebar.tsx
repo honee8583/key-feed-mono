@@ -45,7 +45,7 @@ export function DesktopSidebar() {
     const activeTab = location.pathname.replace('/', '') || 'home';
 
     const notifications = useNotificationStore(state => state.notifications);
-    const unreadCount = notifications.filter(n => n.unread).length;
+    const unreadCount = notifications.filter(n => !n.isRead).length;
 
     const { openSearch, openNotifications } = useUiStore();
 
