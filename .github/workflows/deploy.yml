@@ -1,0 +1,142 @@
+name: CI/CD Deploy
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+
+jobs:
+  # ─────────────────────────────────────────────
+  # 변경된 경로 감지
+  # ─────────────────────────────────────────────
+  detect-changes:
+    name: Detect Changed Paths
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Filter changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+
+  # ─────────────────────────────────────────────
+  # 백엔드 빌드 & 배포
+  # ─────────────────────────────────────────────
+  deploy-backend:
+    name: Deploy Backend
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/keyfeed-backend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/keyfeed-backend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy backend on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/keyfeed-backend:latest
+
+            docker stop keyfeed-backend || true
+            docker rm keyfeed-backend || true
+
+            docker run -d \
+              --name keyfeed-backend \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              -e JASYPT_ENCRYPTOR_PASSWORD=${{ secrets.JASYPT_ENCRYPTOR_PASSWORD }} \
+              -e jwt_key=${{ secrets.JWT_KEY }} \
+              ${{ secrets.DOCKERHUB_USERNAME }}/keyfeed-backend:latest
+
+            docker image prune -f
+
+  # ─────────────────────────────────────────────
+  # 프론트엔드 빌드 & 배포
+  # ─────────────────────────────────────────────
+  deploy-frontend:
+    name: Deploy Frontend
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/keyfeed-frontend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/keyfeed-frontend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy frontend on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/keyfeed-frontend:latest
+
+            docker stop keyfeed-frontend || true
+            docker rm keyfeed-frontend || true
+
+            docker run -d \
+              --name keyfeed-frontend \
+              --restart unless-stopped \
+              -p 80:80 \
+              ${{ secrets.DOCKERHUB_USERNAME }}/keyfeed-frontend:latest
+
+            docker image prune -f
