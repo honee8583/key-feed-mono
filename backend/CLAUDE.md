@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 프로젝트 개요
 
 Key-Feed의 MSA 기반 마이크로서비스들을 단일 Spring Boot 모놀리틱 애플리케이션으로 통합한 프로젝트입니다.
-**Spring Boot 3.5.7 / Java 17 / MySQL + Elasticsearch**
+**Spring Boot 3.5.7 / Java 17 / MySQL**
 
 ---
 
@@ -53,7 +53,7 @@ src/main/java/com/keyfeed/keyfeedmonolithic/
 ├── domain/
 │   ├── auth/        # 인증/인가, JWT 발급, 이메일 인증, 비밀번호 재설정
 │   ├── bookmark/    # 북마크 및 폴더 관리
-│   ├── content/     # 피드 콘텐츠 (Elasticsearch)
+│   ├── content/     # 피드 콘텐츠
 │   ├── keyword/     # 키워드 구독, 트렌딩 키워드
 │   └── source/      # RSS 소스 관리, 유효성 검사
 └── global/
@@ -121,7 +121,6 @@ public abstract class CustomException extends RuntimeException {
 ```yaml
 # application-local.yml 기준
 MySQL: localhost:3306/key_feed_identity (username: root, password: 1111)
-Elasticsearch: http://localhost:9200
 JWT 만료: 14일 (로컬은 길게 설정됨)
 SQL 로깅: P6Spy (p6spy: info 레벨)
 ```
