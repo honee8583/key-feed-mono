@@ -65,10 +65,10 @@ export const INITIAL_POSTS: Post[] = [
 ];
 
 export const MOCK_NOTIFICATIONS: Notification[] = [
-    { id: 1, type: 'post', title: 'Toss Tech', body: 'Node.js 성능 최적화의 모든 것 아티클이 올라왔습니다.', time: '방금 전', unread: true },
-    { id: 2, type: 'system', title: '시스템', body: '새로운 폴더 "나중에 읽을 글"이 성공적으로 생성되었습니다.', time: '1시간 전', unread: false },
-    { id: 3, type: 'trend', title: '트렌드 키워드', body: '실시간 검색어에 "DeepSeek-V3"가 새롭게 진입했습니다.', time: '3시간 전', unread: true },
-    { id: 4, type: 'post', title: 'Naver D2', body: 'FE 개발자를 위한 렌더링 패턴 분석 가이드가 발행되었습니다.', time: '어제', unread: false },
+    { id: 1, title: 'Toss Tech', message: 'Node.js 성능 최적화의 모든 것 아티클이 올라왔습니다.', createdAt: '방금 전', isRead: false },
+    { id: 2, title: '시스템', message: '새로운 폴더 "나중에 읽을 글"이 성공적으로 생성되었습니다.', createdAt: '1시간 전', isRead: true },
+    { id: 3, title: '트렌드 키워드', message: '실시간 검색어에 "DeepSeek-V3"가 새롭게 진입했습니다.', createdAt: '3시간 전', isRead: false },
+    { id: 4, title: 'Naver D2', message: 'FE 개발자를 위한 렌더링 패턴 분석 가이드가 발행되었습니다.', createdAt: '어제', isRead: true },
 ];
 
 export const TRENDING_KEYWORDS: TrendingKeyword[] = [
