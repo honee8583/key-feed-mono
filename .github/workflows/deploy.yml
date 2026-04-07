@@ -75,6 +75,8 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            docker network create keyfeed-network || true
+
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/keyfeed-backend:latest
 
             docker stop keyfeed-backend || true
@@ -82,8 +84,8 @@ jobs:
 
             docker run -d \
               --name keyfeed-backend \
+              --network keyfeed-network \
               --restart unless-stopped \
-              -p 8080:8080 \
               -e JASYPT_ENCRYPTOR_PASSWORD=${{ secrets.JASYPT_ENCRYPTOR_PASSWORD }} \
               -e jwt_key=${{ secrets.JWT_KEY }} \
               ${{ secrets.DOCKERHUB_USERNAME }}/keyfeed-backend:latest
@@ -131,6 +133,8 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            docker network create keyfeed-network || true
+
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/keyfeed-frontend:latest
 
             docker stop keyfeed-frontend || true
@@ -138,6 +142,7 @@ jobs:
 
             docker run -d \
               --name keyfeed-frontend \
+              --network keyfeed-network \
               --restart unless-stopped \
               -p 80:80 \
               ${{ secrets.DOCKERHUB_USERNAME }}/keyfeed-frontend:latest
