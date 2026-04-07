@@ -86,6 +86,7 @@ jobs:
               --name keyfeed-backend \
               --network keyfeed-network \
               --restart unless-stopped \
+              -v /home/ubuntu/logs:/app/logs \
               -e JASYPT_ENCRYPTOR_PASSWORD=${{ secrets.JASYPT_ENCRYPTOR_PASSWORD }} \
               -e jwt_key=${{ secrets.JWT_KEY }} \
               -e CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }} \
