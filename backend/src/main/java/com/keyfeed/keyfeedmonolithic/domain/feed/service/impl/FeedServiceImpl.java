@@ -7,8 +7,6 @@ import com.keyfeed.keyfeedmonolithic.domain.content.repository.ContentRepository
 import com.keyfeed.keyfeedmonolithic.domain.feed.service.FeedService;
 import com.keyfeed.keyfeedmonolithic.domain.source.dto.SourceResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.source.service.SourceService;
-import com.keyfeed.keyfeedmonolithic.global.error.exception.InternalServerProcessingException;
-import com.keyfeed.keyfeedmonolithic.global.message.ErrorMessage;
 import com.keyfeed.keyfeedmonolithic.global.response.CommonPageResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,112 +29,34 @@ public class FeedServiceImpl implements FeedService {
     private final ContentRepository contentRepository;
 
     @Override
-    public Map<Long, String> fetchUserSourceNameMapping(Long userId) {
-        try {
-            List<SourceResponseDto> userSources = sourceService.getSourcesByUser(userId);
-            if (CollectionUtils.isEmpty(userSources)) {
-                return Collections.emptyMap();
-            }
-
-            return userSources.stream()
-                    .filter(source -> StringUtils.hasText(source.getUserDefinedName()))
-                    .collect(Collectors.toMap(
-                            SourceResponseDto::getSourceId,
-                            SourceResponseDto::getUserDefinedName,
-                            (existing, replacement) -> existing
-                    ));
-        } catch (Exception e) {
-            log.error("소스 목록 조회 중 예상치 못한 오류 발생. userId: {}", userId, e);
-            throw new InternalServerProcessingException(ErrorMessage.INTERNAL_SERVER_ERROR.getMessage());
+    public CommonPageResponse<ContentFeedResponseDto> getPersonalizedFeeds(Long userId, Long lastId, int size, String keyword) {
+        List<SourceResponseDto> userSources = sourceService.getSourcesByUser(userId);
+        if (CollectionUtils.isEmpty(userSources)) {
+            return CommonPageResponse.empty();
         }
-    }
 
-    @Override
-    public Map<Long, String> fetchUserSourceLogoMapping(Long userId) {
-        try {
-            List<SourceResponseDto> userSources = sourceService.getSourcesByUser(userId);
-            if (CollectionUtils.isEmpty(userSources)) {
-                return Collections.emptyMap();
-            }
+        Map<Long, SourceResponseDto> sourceMap = userSources.stream()
+                .collect(Collectors.toMap(
+                        SourceResponseDto::getSourceId,
+                        source -> source,
+                        (existing, replacement) -> existing
+                ));
 
-            return userSources.stream()
-                    .filter(source -> StringUtils.hasText(source.getLogoUrl()))
-                    .collect(Collectors.toMap(
-                            SourceResponseDto::getSourceId,
-                            SourceResponseDto::getLogoUrl,
-                            (existing, replacement) -> existing
-                    ));
-        } catch (Exception e) {
-            log.error("소스 로고 조회 중 예상치 못한 오류 발생. userId: {}", userId, e);
-            throw new InternalServerProcessingException(ErrorMessage.INTERNAL_SERVER_ERROR.getMessage());
-        }
-    }
+        List<Long> sourceIds = new ArrayList<>(sourceMap.keySet());
 
-    @Override
-    public CommonPageResponse<ContentFeedResponseDto> getPersonalizedFeedsFromMySQL(Long userId, Map<Long, String> sourceNameMapping, Map<Long, String> sourceLogoMapping, Long lastId, int size, String keyword) {
-        // 사용자가 구독한 source 조회
-        List<Long> sourceIds = sourceService.getSourcesByUser(userId)
-                .stream()
-                .map(SourceResponseDto::getSourceId)
-                .collect(Collectors.toList());
-
-        if (sourceIds.isEmpty()) {
-            return CommonPageResponse.<ContentFeedResponseDto>builder()
-                    .content(Collections.emptyList())
-                    .hasNext(false)
-                    .nextCursorId(null)
-                    .build();
-        }
         int safeSize = Math.min(size, 50);
-        Pageable pageable = PageRequest.of(0, safeSize + 1);
-
-        boolean hasKeyword = keyword != null && !keyword.isBlank();
-
-        List<Content> contents;
-        if (hasKeyword) {
-            contents = lastId == null
-                    ? contentRepository.searchFirstPage(sourceIds, keyword, pageable)
-                    : contentRepository.searchNextPage(sourceIds, lastId, keyword, pageable);
-        } else {
-            contents = lastId == null
-                    ? contentRepository.findFirstPage(sourceIds, pageable)
-                    : contentRepository.findNextPage(sourceIds, lastId, pageable);
-        }
+        List<Content> contents = fetchContents(sourceIds, lastId, keyword, safeSize);
 
         boolean hasNext = contents.size() > safeSize;
-        if (hasNext) {
-            contents = contents.subList(0, safeSize);
-        }
+        List<Content> pagedContents = hasNext ? contents.subList(0, safeSize) : contents;
 
-        List<ContentFeedResponseDto> feeds = contents.stream()
-                .map(content -> ContentFeedResponseDto.from(content, sourceNameMapping, sourceLogoMapping))
+        List<ContentFeedResponseDto> feeds = pagedContents.stream()
+                .map(content -> ContentFeedResponseDto.from(content, sourceMap.get(content.getSourceId())))
                 .collect(Collectors.toList());
 
-        if (userId != null && !feeds.isEmpty()) {
-            try {
-                List<String> contentIds = feeds.stream()
-                        .map(ContentFeedResponseDto::getContentId)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toList());
+        attachBookmarkStatus(userId, feeds);
 
-                if (!contentIds.isEmpty()) {
-                    Map<String, Long> bookmarkMap = bookmarkService.getBookmarkMap(userId, contentIds);
-                    if (bookmarkMap != null) {
-                        feeds.forEach(feed -> {
-                            if (feed.getContentId() != null) {
-                                feed.setBookmarkId(bookmarkMap.get(feed.getContentId()));
-                            }
-                        });
-                    }
-                }
-            } catch (Exception e) {
-                log.error("북마크 정보 조회 실패. userId: {}", userId, e);
-            }
-        }
-
-        Long nextCursorId = hasNext && !contents.isEmpty()
-                ? contents.get(contents.size() - 1).getId()
-                : null;
+        Long nextCursorId = resolveNextCursorId(hasNext, pagedContents);
 
         return CommonPageResponse.<ContentFeedResponseDto>builder()
                 .content(feeds)
@@ -145,4 +65,42 @@ public class FeedServiceImpl implements FeedService {
                 .build();
     }
 
+    private List<Content> fetchContents(List<Long> sourceIds, Long lastId, String keyword, int size) {
+        Pageable pageable = PageRequest.of(0, size + 1);
+
+        if (StringUtils.hasText(keyword)) {
+            if (lastId == null) {
+                return contentRepository.searchFirstPage(sourceIds, keyword, pageable);
+            }
+            return contentRepository.searchNextPage(sourceIds, lastId, keyword, pageable);
+        }
+
+        if (lastId == null) {
+            return contentRepository.findFirstPage(sourceIds, pageable);
+        }
+        return contentRepository.findNextPage(sourceIds, lastId, pageable);
+    }
+
+    private void attachBookmarkStatus(Long userId, List<ContentFeedResponseDto> feeds) {
+        if (userId == null || feeds.isEmpty()) {
+            return;
+        }
+
+        List<String> contentIds = feeds.stream()
+                .map(ContentFeedResponseDto::getContentId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        Map<String, Long> bookmarkMap = bookmarkService.getBookmarkMap(userId, contentIds);
+        if (bookmarkMap != null) {
+            feeds.forEach(feed -> feed.setBookmarkId(bookmarkMap.get(feed.getContentId())));
+        }
+    }
+
+    private Long resolveNextCursorId(boolean hasNext, List<Content> contents) {
+        if (hasNext && !contents.isEmpty()) {
+            return contents.get(contents.size() - 1).getId();
+        }
+        return null;
+    }
 }
