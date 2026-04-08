@@ -42,6 +42,9 @@ management:
   metrics:
     tags:
       application: key-feed-monolithic-backend
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
   endpoint:
     health:
       show-details: always
