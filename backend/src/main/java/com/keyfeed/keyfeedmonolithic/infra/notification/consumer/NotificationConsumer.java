@@ -35,10 +35,8 @@ public class NotificationConsumer {
 
     @Scheduled(fixedDelay = 500, scheduler = "notificationConsumerScheduler")
     public void consume() {
-        log.info("[NotificationConsumer] 컨텐츠를 소비하고 알림을 저장합니다.");
-
         String payload = redisTemplate.opsForList().rightPop(QUEUE_KEY);
-    if (payload == null) {
+        if (payload == null) {
             return;
         }
 
@@ -137,8 +135,7 @@ public class NotificationConsumer {
         return userMatchedKeywords;
     }
 
-    private void saveNotificationsInChunks(Map<Long, Set<String>> userMatchedKeywords,
-                                           ContentEventPayload content) {
+    private void saveNotificationsInChunks(Map<Long, Set<String>> userMatchedKeywords, ContentEventPayload content) {
         List<Long> userIds = new ArrayList<>(userMatchedKeywords.keySet());
 
         long totalInsertTime = 0;
