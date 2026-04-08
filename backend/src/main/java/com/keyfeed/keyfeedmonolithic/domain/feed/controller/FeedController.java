@@ -13,8 +13,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
-
 import static com.keyfeed.keyfeedmonolithic.global.message.SuccessMessage.READ_SUCCESS;
 
 @RestController
@@ -29,9 +27,7 @@ public class FeedController {
                                         @RequestParam(value = "lastId", required = false) Long lastId,
                                         @RequestParam(value = "size", defaultValue = "10") int size,
                                         @RequestParam(value = "keyword", required = false) String keyword) {
-        Map<Long, String> sourceNameMapping = feedService.fetchUserSourceNameMapping(userId);
-        Map<Long, String> sourceLogoMapping = feedService.fetchUserSourceLogoMapping(userId);
-        CommonPageResponse<ContentFeedResponseDto> feeds = feedService.getPersonalizedFeedsFromMySQL(userId, sourceNameMapping, sourceLogoMapping, lastId, size, keyword);
+        CommonPageResponse<ContentFeedResponseDto> feeds = feedService.getPersonalizedFeeds(userId, lastId, size, keyword);
         return ResponseEntity.ok()
                 .body(new HttpResponse(HttpStatus.OK, READ_SUCCESS.getMessage(), feeds));
     }
