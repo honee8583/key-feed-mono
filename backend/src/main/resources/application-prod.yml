@@ -1,7 +1,7 @@
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ENC(dZR8UQIxbKiez++q1n8bQEkVQDfMb87M0dXGeZiUqwjbwZ/zPR+qiqTjK0ytpjOMVvm4DN2cDnFvCgFXcZI5T4wY3Sz5qcjb2jU7sC4uKTOcTz1hXF/IW4+8gP1pfbKnG7Pn82BwPYD6UQ9yVu9OWesKCHCdQfWvYElMNXXudegjl45NdTG6ujjBfpm4Q9Y4NdvztTThUh12eiJd/+NCb9RV8w0FgpjpAZEsoBjHdhU=)
+    url: ENC(QWaTv0JkvTWQoXBdWYuMZwtL8l58xZkntvWgs2JRFkoIA+DqTS/2GKUSByMzJwZYY6SO4Sh0OAdneGfSJTLYz5mPsXma/t7YrusgPFtsARVNlXsVRTFIHkZLmKc12Nc+ujn+Sr3723LFFg5e9kbkpQIwdzYyrXKl4su4M/o6s5OrK3A1CQbtvpKrFjBZ2SP3GBfzB5O4W+3bxMDODL4QoTyq64J2Asim2P7w3ln0WozuQ00xYnbd+w==)
     username: ENC(aNBc+iDYL8X2xPMkzw6NCg==)
     password: ENC(gmIAeYz67h1GnqFM7aM4dw==)
     hikari:
@@ -10,7 +10,7 @@ spring:
 
   data:
     redis:
-      host: ENC(GDTUsGvpKDBoxO5MdnqBeCWI0zh71ZRI)
+      host: ENC(4Z7JpG37Ru7cXlMA+0n9Hz2gMUIIGSkh)
       port: 6379
       timeout: 3000ms          # 연결 타임아웃
       lettuce:
