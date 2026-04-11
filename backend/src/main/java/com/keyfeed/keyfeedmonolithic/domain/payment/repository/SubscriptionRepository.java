@@ -23,4 +23,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
     List<Subscription> findByStatusAndNextBillingAtLessThanEqual(SubscriptionStatus status, LocalDateTime dateTime);
 
     List<Subscription> findByStatusAndExpiredAtLessThanEqual(SubscriptionStatus status, LocalDateTime dateTime);
+
+    boolean existsByUserIdAndStatusIn(Long userId, List<SubscriptionStatus> statuses);
 }
