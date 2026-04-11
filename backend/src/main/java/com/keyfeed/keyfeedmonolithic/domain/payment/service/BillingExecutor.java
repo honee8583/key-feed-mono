@@ -27,16 +27,13 @@ public class BillingExecutor {
     private final PaymentHistoryRepository paymentHistoryRepository;
     private final TossPaymentsClient tossPaymentsClient;
 
-    /**
-     * 공통 결제 실행 시퀀스:
-     * READY history 선저장 → chargeBilling 호출 → 성공: markDone / 실패: markFailed 후 예외 rethrow
-     *
-     * @param subscription 신규 구독 시 null 허용 (startSubscription 케이스)
-     */
     public ChargeResult execute(User user, PaymentMethod paymentMethod, Subscription subscription,
                                 String orderName, int amount) {
         String orderId = generateOrderId(user.getId());
 
+        // TODO 별도 트랜잭션으로 분리
+        // 1. 고유한 orderId로 결제 내역 선저장
+        // 결제에 실패한 경우 기존 orderId로 재결제 시도로 중복 방지
         PaymentHistory history = PaymentHistory.builder()
                 .user(user)
                 .paymentMethod(paymentMethod)
@@ -49,6 +46,7 @@ public class BillingExecutor {
                 .build();
         paymentHistoryRepository.save(history);
 
+        // 2. orderId로 결제 진행
         TossBillingChargeResponse chargeResponse;
         try {
             chargeResponse = tossPaymentsClient.chargeBilling(
@@ -68,6 +66,7 @@ public class BillingExecutor {
             throw e;
         }
 
+        // 3. 결제내역 상태 업데이트
         history.markDone(chargeResponse.getPaymentKey(), parseApprovedAt(chargeResponse.getApprovedAt()));
         return new ChargeResult(history, chargeResponse);
     }
