@@ -41,6 +41,7 @@ public class BillingScheduler {
     /**
      * 자동 결제 스케줄러 — 매일 오전 10시 실행
      */
+    // TODO 서버 인스턴스가 늘어날 경우 중복 결제 위험성
     @Scheduled(cron = "0 0 10 * * *")
     @Transactional // TODO 단일 트랜잭션으로 분리
     public void executeScheduledPayments() {
@@ -64,6 +65,7 @@ public class BillingScheduler {
      * 서버 재시작 시 READY 상태 복구 로직
      * 10분 이상 READY 상태로 남아있는 건을 Toss API로 상태 확인 후 동기화
      */
+    // TODO 주기적 배치로 변경
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void recoverReadyPayments() {

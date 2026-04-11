@@ -40,22 +40,22 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     @Override
     @Transactional
     public SubscriptionStartResponseDto startSubscription(Long userId, SubscriptionStartRequestDto request) {
-        // 1. 이미 ACTIVE인 구독이 있는지 검증 (중복 구독 방지)
+        // 1. 사용자 락 조회 (토스 API 호출에 필요한 customerKey, email, name)
+        User user = userRepository.findByIdWithLock(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User", userId));
+
+        // 2. 이미 ACTIVE인 구독이 있는지 검증 (중복 구독 방지)
         if (subscriptionRepository.existsByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)) {
             throw new ActiveSubscriptionAlreadyExistsException();
         }
 
-        // 2. methodId가 본인 소유이고 활성 상태인지 검증
+        // 3. methodId가 본인 소유이고 활성 상태인지 검증
         PaymentMethod paymentMethod = paymentMethodRepository.findByIdAndIsActiveTrue(request.getMethodId())
                 .orElseThrow(PaymentMethodNotFoundException::new);
 
         if (!paymentMethod.getUser().getId().equals(userId)) {
             throw new PaymentMethodNotFoundException();
         }
-
-        // 3. 사용자 조회 (토스 API 호출에 필요한 customerKey, email, name)
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("User", userId));
 
         // 4. 결제 실행 (READY 선저장 → chargeBilling → markDone/markFailed)
         ChargeResult result = billingExecutor.execute(user, paymentMethod, null, SUBSCRIPTION_ORDER_NAME, SUBSCRIPTION_PRICE);
