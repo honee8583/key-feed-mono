@@ -10,6 +10,7 @@ import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.request.TossBillingI
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossBillingChargeResponse;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossBillingIssueResponse;
 import com.keyfeed.keyfeedmonolithic.global.error.exception.InternalApiRequestException;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,7 @@ class TossPaymentsClientTest {
         TossPaymentsConfig config = new TossPaymentsConfig(properties);
         RestTemplate restTemplate = config.tossRestTemplate();
 
-        client = new TossPaymentsClient(restTemplate, properties);
+        client = new TossPaymentsClient(restTemplate, properties, new SimpleMeterRegistry());
     }
 
     // ===== 빌링키 발급 =====

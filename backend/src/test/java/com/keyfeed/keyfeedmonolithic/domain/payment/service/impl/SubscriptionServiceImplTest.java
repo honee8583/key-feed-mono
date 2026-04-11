@@ -6,9 +6,11 @@ import com.keyfeed.keyfeedmonolithic.domain.payment.dto.*;
 import com.keyfeed.keyfeedmonolithic.domain.payment.entity.*;
 import com.keyfeed.keyfeedmonolithic.domain.payment.exception.*;
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.PaymentHistoryRepository;
-import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.request.TossPaymentCancelRequest;
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.PaymentMethodRepository;
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.SubscriptionRepository;
+import com.keyfeed.keyfeedmonolithic.domain.payment.service.BillingExecutor;
+import com.keyfeed.keyfeedmonolithic.domain.payment.writer.PaymentHistoryWriter;
+import com.keyfeed.keyfeedmonolithic.domain.payment.writer.SubscriptionWriter;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.TossPaymentsClient;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossBillingChargeResponse;
 import org.junit.jupiter.api.DisplayName;
@@ -47,6 +49,15 @@ class SubscriptionServiceImplTest {
     @Mock
     private TossPaymentsClient tossPaymentsClient;
 
+    @Mock
+    private BillingExecutor billingExecutor;
+
+    @Mock
+    private SubscriptionWriter subscriptionWriter;
+
+    @Mock
+    private PaymentHistoryWriter paymentHistoryWriter;
+
     // ===== startSubscription =====
 
     @Test
@@ -57,14 +68,17 @@ class SubscriptionServiceImplTest {
         Long methodId = 10L;
         User user = makeUser(userId);
         PaymentMethod paymentMethod = makePaymentMethod(methodId, user);
-        TossBillingChargeResponse chargeResponse = makeChargeResponse();
+        Subscription pendingSubscription = makeSubscription(user, paymentMethod, SubscriptionStatus.PENDING);
+        ChargeResult chargeResult = makeChargeResult(pendingSubscription);
 
-        given(subscriptionRepository.existsByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)).willReturn(false);
-        given(paymentMethodRepository.findByIdAndIsActiveTrue(methodId)).willReturn(Optional.of(paymentMethod));
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
-        given(tossPaymentsClient.chargeBilling(anyString(), any())).willReturn(chargeResponse);
-        given(paymentHistoryRepository.save(any())).willAnswer(i -> i.getArgument(0));
-        given(subscriptionRepository.save(any())).willAnswer(i -> i.getArgument(0));
+        given(subscriptionRepository.existsByUserIdAndStatusIn(eq(userId), anyList())).willReturn(false);
+        given(paymentMethodRepository.findByIdAndIsActiveTrue(methodId)).willReturn(Optional.of(paymentMethod));
+        given(subscriptionWriter.savePending(user, paymentMethod)).willReturn(pendingSubscription);
+        given(billingExecutor.execute(eq(user), eq(paymentMethod), eq(pendingSubscription), anyString(), anyInt()))
+                .willReturn(chargeResult);
+        willDoNothing().given(subscriptionWriter).updateActive(pendingSubscription);
+        willDoNothing().given(paymentHistoryWriter).linkSubscription(any(), eq(pendingSubscription));
 
         SubscriptionStartRequestDto request = makeStartRequest(methodId);
 
@@ -72,21 +86,25 @@ class SubscriptionServiceImplTest {
         SubscriptionStartResponseDto result = subscriptionService.startSubscription(userId, request);
 
         // then
-        assertThat(result.getStatus()).isEqualTo("ACTIVE");
-        assertThat(result.getNextBillingAt()).isNotNull();
-        assertThat(result.getExpiredAt()).isNotNull();
+        assertThat(result).isNotNull();
+        then(billingExecutor).should().execute(eq(user), eq(paymentMethod), eq(pendingSubscription), anyString(), anyInt());
+        then(subscriptionWriter).should().updateActive(pendingSubscription);
+        then(paymentHistoryWriter).should().linkSubscription(any(), eq(pendingSubscription));
     }
 
     @Test
-    @DisplayName("구독 시작 실패 - 이미 ACTIVE 구독이 존재하면 409 예외")
+    @DisplayName("구독 시작 실패 - 이미 ACTIVE/PENDING 구독이 존재하면 409 예외")
     void 구독_시작_실패_중복구독() {
         // given
         Long userId = 1L;
-        given(subscriptionRepository.existsByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)).willReturn(true);
+        given(userRepository.findById(userId)).willReturn(Optional.of(makeUser(userId)));
+        given(subscriptionRepository.existsByUserIdAndStatusIn(eq(userId), anyList())).willReturn(true);
 
         // when & then
         assertThatThrownBy(() -> subscriptionService.startSubscription(userId, makeStartRequest(10L)))
                 .isInstanceOf(ActiveSubscriptionAlreadyExistsException.class);
+
+        then(billingExecutor).should(never()).execute(any(), any(), any(), anyString(), anyInt());
     }
 
     @Test
@@ -94,7 +112,8 @@ class SubscriptionServiceImplTest {
     void 구독_시작_실패_결제수단_없음() {
         // given
         Long userId = 1L;
-        given(subscriptionRepository.existsByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)).willReturn(false);
+        given(userRepository.findById(userId)).willReturn(Optional.of(makeUser(userId)));
+        given(subscriptionRepository.existsByUserIdAndStatusIn(eq(userId), anyList())).willReturn(false);
         given(paymentMethodRepository.findByIdAndIsActiveTrue(anyLong())).willReturn(Optional.empty());
 
         // when & then
@@ -111,7 +130,8 @@ class SubscriptionServiceImplTest {
         User otherUser = makeUser(otherUserId);
         PaymentMethod otherMethod = makePaymentMethod(10L, otherUser);
 
-        given(subscriptionRepository.existsByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)).willReturn(false);
+        given(userRepository.findById(userId)).willReturn(Optional.of(makeUser(userId)));
+        given(subscriptionRepository.existsByUserIdAndStatusIn(eq(userId), anyList())).willReturn(false);
         given(paymentMethodRepository.findByIdAndIsActiveTrue(10L)).willReturn(Optional.of(otherMethod));
 
         // when & then
@@ -120,30 +140,28 @@ class SubscriptionServiceImplTest {
     }
 
     @Test
-    @DisplayName("구독 시작 실패 - 토스 결제 실패 시 payment_history FAILED 기록 후 예외")
-    void 구독_시작_실패_결제실패() {
+    @DisplayName("구독 시작 실패 - 결제 실패 시 구독이 CANCELED로 롤백된다")
+    void 구독_시작_실패_결제실패_구독_CANCELED() {
         // given
         Long userId = 1L;
         Long methodId = 10L;
         User user = makeUser(userId);
         PaymentMethod paymentMethod = makePaymentMethod(methodId, user);
-        PaymentHistory[] savedHistory = new PaymentHistory[1];
+        Subscription pendingSubscription = makeSubscription(user, paymentMethod, SubscriptionStatus.PENDING);
 
-        given(subscriptionRepository.existsByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)).willReturn(false);
-        given(paymentMethodRepository.findByIdAndIsActiveTrue(methodId)).willReturn(Optional.of(paymentMethod));
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
-        given(paymentHistoryRepository.save(any())).willAnswer(i -> {
-            savedHistory[0] = i.getArgument(0);
-            return savedHistory[0];
-        });
-        given(tossPaymentsClient.chargeBilling(anyString(), any())).willThrow(new PaymentFailedException());
+        given(subscriptionRepository.existsByUserIdAndStatusIn(eq(userId), anyList())).willReturn(false);
+        given(paymentMethodRepository.findByIdAndIsActiveTrue(methodId)).willReturn(Optional.of(paymentMethod));
+        given(subscriptionWriter.savePending(user, paymentMethod)).willReturn(pendingSubscription);
+        given(billingExecutor.execute(any(), any(), any(), anyString(), anyInt()))
+                .willThrow(new PaymentFailedException());
 
         // when & then
         assertThatThrownBy(() -> subscriptionService.startSubscription(userId, makeStartRequest(methodId)))
                 .isInstanceOf(PaymentFailedException.class);
 
-        assertThat(savedHistory[0].getStatus()).isEqualTo(PaymentHistoryStatus.FAILED);
-        verify(subscriptionRepository, never()).save(any(Subscription.class));
+        then(subscriptionWriter).should().updateCanceled(pendingSubscription);
+        then(subscriptionWriter).should(never()).updateActive(any());
     }
 
     // ===== getMySubscription =====
@@ -244,7 +262,7 @@ class SubscriptionServiceImplTest {
     // ===== resumeSubscription =====
 
     @Test
-    @DisplayName("구독 재개 성공 - PAUSED 구독이 ACTIVE로 복구되고 retryCount가 0이 된다")
+    @DisplayName("구독 재개 성공 - PAUSED 구독이 ACTIVE로 복구되고 nextBillingAt이 갱신된다")
     void 구독_재개_성공() {
         // given
         Long userId = 1L;
@@ -252,14 +270,14 @@ class SubscriptionServiceImplTest {
         User user = makeUser(userId);
         PaymentMethod paymentMethod = makePaymentMethod(methodId, user);
         Subscription subscription = makeSubscription(user, paymentMethod, SubscriptionStatus.PAUSED);
-        TossBillingChargeResponse chargeResponse = makeChargeResponse();
+        ChargeResult chargeResult = makeChargeResult(subscription);
 
         given(subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.PAUSED))
                 .willReturn(Optional.of(subscription));
         given(paymentMethodRepository.findByIdAndIsActiveTrue(methodId)).willReturn(Optional.of(paymentMethod));
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
-        given(tossPaymentsClient.chargeBilling(anyString(), any())).willReturn(chargeResponse);
-        given(paymentHistoryRepository.save(any())).willAnswer(i -> i.getArgument(0));
+        given(billingExecutor.execute(eq(user), eq(paymentMethod), eq(subscription), anyString(), anyInt()))
+                .willReturn(chargeResult);
 
         SubscriptionResumeRequestDto request = makeResumeRequest(methodId);
 
@@ -304,7 +322,7 @@ class SubscriptionServiceImplTest {
     }
 
     @Test
-    @DisplayName("구독 재개 실패 - 결제 실패 시 PAUSED 상태 유지 및 payment_history FAILED 기록")
+    @DisplayName("구독 재개 실패 - 결제 실패 시 PAUSED 상태 유지")
     void 구독_재개_실패_결제실패_상태유지() {
         // given
         Long userId = 1L;
@@ -312,24 +330,19 @@ class SubscriptionServiceImplTest {
         User user = makeUser(userId);
         PaymentMethod paymentMethod = makePaymentMethod(methodId, user);
         Subscription subscription = makeSubscription(user, paymentMethod, SubscriptionStatus.PAUSED);
-        PaymentHistory[] savedHistory = new PaymentHistory[1];
 
         given(subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.PAUSED))
                 .willReturn(Optional.of(subscription));
         given(paymentMethodRepository.findByIdAndIsActiveTrue(methodId)).willReturn(Optional.of(paymentMethod));
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
-        given(paymentHistoryRepository.save(any())).willAnswer(i -> {
-            savedHistory[0] = i.getArgument(0);
-            return savedHistory[0];
-        });
-        given(tossPaymentsClient.chargeBilling(anyString(), any())).willThrow(new PaymentFailedException());
+        given(billingExecutor.execute(any(), any(), any(), anyString(), anyInt()))
+                .willThrow(new PaymentFailedException());
 
         // when & then
         assertThatThrownBy(() -> subscriptionService.resumeSubscription(userId, makeResumeRequest(methodId)))
                 .isInstanceOf(PaymentFailedException.class);
 
         assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.PAUSED);
-        assertThat(savedHistory[0].getStatus()).isEqualTo(PaymentHistoryStatus.FAILED);
     }
 
     // ===== refundSubscription =====
@@ -375,7 +388,7 @@ class SubscriptionServiceImplTest {
     }
 
     @Test
-    @DisplayName("구독 취소(환불) 실패 - 결제일로부터 1일 초과 시 422 예외")
+    @DisplayName("구독 취소(환불) 실패 - 결제일로부터 1일 초과 시 환불 기간 만료 예외")
     void 구독_취소_실패_환불기간초과() {
         // given
         Long userId = 1L;
@@ -403,7 +416,7 @@ class SubscriptionServiceImplTest {
     }
 
     @Test
-    @DisplayName("구독 취소(환불) 실패 - 토스 환불 API 실패 시 RefundFailedException")
+    @DisplayName("구독 취소(환불) 실패 - 토스 환불 API 실패 시 RefundFailedException, 구독 상태 유지")
     void 구독_취소_실패_토스API실패() {
         // given
         Long userId = 1L;
@@ -465,15 +478,23 @@ class SubscriptionServiceImplTest {
                 .build();
     }
 
-    private TossBillingChargeResponse makeChargeResponse() {
+    private ChargeResult makeChargeResult(Subscription subscription) {
         try {
+            PaymentHistory history = new PaymentHistory();
+            setField(history, "id", 1L);
+            setField(history, "orderId", "order-id-test");
+            setField(history, "status", PaymentHistoryStatus.DONE);
+            setField(history, "paymentKey", "payment-key-test");
+            setField(history, "amount", 9900);
+
             TossBillingChargeResponse response = new TossBillingChargeResponse();
             setField(response, "paymentKey", "payment-key-test");
             setField(response, "orderId", "order-id-test");
             setField(response, "status", "DONE");
             setField(response, "totalAmount", 9900L);
-            setField(response, "approvedAt", "2024-01-15T10:30:00+09:00");
-            return response;
+            setField(response, "approvedAt", "2026-04-05T10:00:00+09:00");
+
+            return new ChargeResult(history, response);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
