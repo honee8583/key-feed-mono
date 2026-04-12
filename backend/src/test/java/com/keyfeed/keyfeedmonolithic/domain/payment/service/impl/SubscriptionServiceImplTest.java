@@ -9,7 +9,6 @@ import com.keyfeed.keyfeedmonolithic.domain.payment.repository.PaymentHistoryRep
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.PaymentMethodRepository;
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.SubscriptionRepository;
 import com.keyfeed.keyfeedmonolithic.domain.payment.service.BillingExecutor;
-import com.keyfeed.keyfeedmonolithic.domain.payment.writer.PaymentHistoryWriter;
 import com.keyfeed.keyfeedmonolithic.domain.payment.writer.SubscriptionWriter;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.TossPaymentsClient;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossBillingChargeResponse;
@@ -55,9 +54,6 @@ class SubscriptionServiceImplTest {
     @Mock
     private SubscriptionWriter subscriptionWriter;
 
-    @Mock
-    private PaymentHistoryWriter paymentHistoryWriter;
-
     // ===== startSubscription =====
 
     @Test
@@ -78,7 +74,6 @@ class SubscriptionServiceImplTest {
         given(billingExecutor.execute(eq(user), eq(paymentMethod), eq(pendingSubscription), anyString(), anyInt()))
                 .willReturn(chargeResult);
         willDoNothing().given(subscriptionWriter).updateActive(pendingSubscription);
-        willDoNothing().given(paymentHistoryWriter).linkSubscription(any(), eq(pendingSubscription));
 
         SubscriptionStartRequestDto request = makeStartRequest(methodId);
 
@@ -89,7 +84,6 @@ class SubscriptionServiceImplTest {
         assertThat(result).isNotNull();
         then(billingExecutor).should().execute(eq(user), eq(paymentMethod), eq(pendingSubscription), anyString(), anyInt());
         then(subscriptionWriter).should().updateActive(pendingSubscription);
-        then(paymentHistoryWriter).should().linkSubscription(any(), eq(pendingSubscription));
     }
 
     @Test

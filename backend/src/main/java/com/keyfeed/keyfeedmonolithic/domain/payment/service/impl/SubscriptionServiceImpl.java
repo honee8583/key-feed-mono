@@ -10,7 +10,6 @@ import com.keyfeed.keyfeedmonolithic.domain.payment.repository.PaymentMethodRepo
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.SubscriptionRepository;
 import com.keyfeed.keyfeedmonolithic.domain.payment.service.BillingExecutor;
 import com.keyfeed.keyfeedmonolithic.domain.payment.service.SubscriptionService;
-import com.keyfeed.keyfeedmonolithic.domain.payment.writer.PaymentHistoryWriter;
 import com.keyfeed.keyfeedmonolithic.domain.payment.writer.SubscriptionWriter;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.TossPaymentsClient;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.request.TossPaymentCancelRequest;
@@ -39,7 +38,6 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private final TossPaymentsClient tossPaymentsClient;
     private final BillingExecutor billingExecutor;
     private final SubscriptionWriter subscriptionWriter;
-    private final PaymentHistoryWriter paymentHistoryWriter;
 
     @Override
     public SubscriptionStartResponseDto startSubscription(Long userId, SubscriptionStartRequestDto request) {
@@ -68,9 +66,6 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
             // 6. Subscription ACTIVE 업데이트 (즉시 커밋)
             subscriptionWriter.updateActive(subscription);
-
-            // 7. PaymentHistory에 subscription 연결 (즉시 커밋)
-            paymentHistoryWriter.linkSubscription(result.history(), subscription);
 
             return SubscriptionStartResponseDto.from(subscription, result.history());
 

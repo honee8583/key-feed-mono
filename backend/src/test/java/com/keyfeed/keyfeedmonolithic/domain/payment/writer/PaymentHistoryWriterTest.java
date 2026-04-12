@@ -162,42 +162,6 @@ class PaymentHistoryWriterTest {
         then(paymentHistoryRepository).should().save(history);
     }
 
-    // ===== linkSubscription =====
-
-    @Test
-    @DisplayName("linkSubscription - 결제 내역에 구독이 연결된다")
-    void linkSubscription_구독_연결() {
-        // given
-        User user = makeUser(1L);
-        PaymentMethod paymentMethod = makePaymentMethod(user);
-        PaymentHistory history = makeHistory(PaymentHistoryStatus.DONE);
-        Subscription subscription = makeSubscription(user, paymentMethod);
-        given(paymentHistoryRepository.save(any())).willAnswer(i -> i.getArgument(0));
-
-        // when
-        paymentHistoryWriter.linkSubscription(history, subscription);
-
-        // then
-        assertThat(history.getSubscription()).isEqualTo(subscription);
-    }
-
-    @Test
-    @DisplayName("linkSubscription - repository save가 호출된다")
-    void linkSubscription_save_호출() {
-        // given
-        User user = makeUser(1L);
-        PaymentMethod paymentMethod = makePaymentMethod(user);
-        PaymentHistory history = makeHistory(PaymentHistoryStatus.DONE);
-        Subscription subscription = makeSubscription(user, paymentMethod);
-        given(paymentHistoryRepository.save(any())).willAnswer(i -> i.getArgument(0));
-
-        // when
-        paymentHistoryWriter.linkSubscription(history, subscription);
-
-        // then
-        then(paymentHistoryRepository).should().save(history);
-    }
-
     // ===== helpers =====
 
     private User makeUser(Long id) {

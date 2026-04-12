@@ -48,10 +48,4 @@ public class PaymentHistoryWriter {
         history.markFailed(reason);
         paymentHistoryRepository.save(history);
     }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void linkSubscription(PaymentHistory history, Subscription subscription) {
-        history.linkSubscription(subscription);
-        paymentHistoryRepository.save(history);
-    }
 }
