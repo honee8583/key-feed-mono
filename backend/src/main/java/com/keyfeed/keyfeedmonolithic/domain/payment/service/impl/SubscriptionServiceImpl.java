@@ -10,6 +10,7 @@ import com.keyfeed.keyfeedmonolithic.domain.payment.repository.PaymentMethodRepo
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.SubscriptionRepository;
 import com.keyfeed.keyfeedmonolithic.domain.payment.service.BillingExecutor;
 import com.keyfeed.keyfeedmonolithic.domain.payment.service.SubscriptionService;
+import com.keyfeed.keyfeedmonolithic.domain.payment.writer.SubscriptionWriter;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.TossPaymentsClient;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.request.TossPaymentCancelRequest;
 import com.keyfeed.keyfeedmonolithic.global.error.exception.EntityNotFoundException;
@@ -27,56 +28,48 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SubscriptionServiceImpl implements SubscriptionService {
 
-    private static final int SUBSCRIPTION_PRICE = 100;
-    private static final String SUBSCRIPTION_ORDER_NAME = "프리미엄 구독 1개월";
-
     private final SubscriptionRepository subscriptionRepository;
     private final PaymentMethodRepository paymentMethodRepository;
     private final PaymentHistoryRepository paymentHistoryRepository;
     private final UserRepository userRepository;
     private final TossPaymentsClient tossPaymentsClient;
     private final BillingExecutor billingExecutor;
+    private final SubscriptionWriter subscriptionWriter;
 
     @Override
-    @Transactional
     public SubscriptionStartResponseDto startSubscription(Long userId, SubscriptionStartRequestDto request) {
-        // 1. 사용자 락 조회 (토스 API 호출에 필요한 customerKey, email, name)
-        User user = userRepository.findByIdWithLock(userId)
+        // 1. 사용자 조회 (토스 API 호출에 필요한 customerKey, email, name)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User", userId));
 
         // 2. 이미 ACTIVE인 구독이 있는지 검증 (중복 구독 방지)
-        if (subscriptionRepository.existsByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)) {
+        if (subscriptionRepository.existsByUserIdAndStatusIn(userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.PENDING))) {
             throw new ActiveSubscriptionAlreadyExistsException();
         }
 
-        // 3. methodId가 본인 소유이고 활성 상태인지 검증
-        PaymentMethod paymentMethod = paymentMethodRepository.findByIdAndIsActiveTrue(request.getMethodId())
+        // 3. methodId가 본인 소유이고 활성 상태인지 검증 (쿼리에서 소유권까지 함께 확인)
+        PaymentMethod paymentMethod = paymentMethodRepository.findByIdAndUserIdAndIsActiveTrue(request.getMethodId(), userId)
                 .orElseThrow(PaymentMethodNotFoundException::new);
 
-        if (!paymentMethod.getUser().getId().equals(userId)) {
-            throw new PaymentMethodNotFoundException();
+        // 4. 구독 선저장(PENDING)
+        // 중복 결제 바잊 선저장, PaymentHistory에서 필요
+        Subscription subscription = subscriptionWriter.savePending(user, paymentMethod);
+
+        // 5. 결제 실행
+        // 결제내역(READY) 저장 -> 결제 API 호출 -> 결제내역 상태(DONE) 업데이트
+        ChargeResult result;
+        try {
+            result = billingExecutor.execute(
+                    user, paymentMethod, subscription, SubscriptionConstants.SUBSCRIPTION_ORDER_NAME, SubscriptionConstants.SUBSCRIPTION_PRICE
+            );
+        } catch (Exception e) {
+            // 결제 자체가 실패한 경우 → 실제 청구 없음, 구독 CANCELED 처리
+            subscriptionWriter.updateCanceled(subscription);
+            throw e;
         }
 
-        // 4. 결제 실행 (READY 선저장 → chargeBilling → markDone/markFailed)
-        ChargeResult result = billingExecutor.execute(user, paymentMethod, null, SUBSCRIPTION_ORDER_NAME, SUBSCRIPTION_PRICE);
-
-        // 5. subscription INSERT (status: ACTIVE, 만료일/다음 결제일: 현재 +1달)
-        LocalDateTime now = LocalDateTime.now();
-        Subscription subscription = Subscription.builder()
-                .user(user)
-                .paymentMethod(paymentMethod)
-                .status(SubscriptionStatus.ACTIVE)
-                .price(SUBSCRIPTION_PRICE)
-                .orderName(SUBSCRIPTION_ORDER_NAME)
-                .startedAt(now)
-                .expiredAt(now.plusMonths(1))
-                .nextBillingAt(now.plusMonths(1))
-                .retryCount(0)
-                .build();
-        subscriptionRepository.save(subscription);
-
-        // 6. payment_history에 생성된 subscription 연결
-        result.history().linkSubscription(subscription);
+        // 6. Subscription ACTIVE 업데이트 (즉시 커밋)
+        subscriptionWriter.updateActive(subscription);
 
         return SubscriptionStartResponseDto.from(subscription, result.history());
     }
@@ -107,29 +100,24 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     }
 
     @Override
-    @Transactional
     public SubscriptionResumeResponseDto resumeSubscription(Long userId, SubscriptionResumeRequestDto request) {
         // 1. PAUSED 상태의 구독이 있는지 검증
         Subscription subscription = subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.PAUSED)
                 .orElseThrow(PausedSubscriptionNotFoundException::new);
 
-        // 2. methodId가 본인 소유이고 활성 상태인지 검증
-        PaymentMethod paymentMethod = paymentMethodRepository.findByIdAndIsActiveTrue(request.getMethodId())
+        // 2. methodId가 본인 소유이고 활성 상태인지 검증 (쿼리에서 소유권까지 함께 확인)
+        PaymentMethod paymentMethod = paymentMethodRepository.findByIdAndUserIdAndIsActiveTrue(request.getMethodId(), userId)
                 .orElseThrow(PaymentMethodNotFoundException::new);
-
-        if (!paymentMethod.getUser().getId().equals(userId)) {
-            throw new PaymentMethodNotFoundException();
-        }
 
         // 3. 사용자 조회 (토스 API 호출에 필요한 customerKey, email, name)
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User", userId));
 
         // 4. 밀린 결제 즉시 재시도 (READY 선저장 → chargeBilling → markDone/markFailed)
-        billingExecutor.execute(user, paymentMethod, subscription, SUBSCRIPTION_ORDER_NAME, SUBSCRIPTION_PRICE);
+        billingExecutor.execute(user, paymentMethod, subscription, SubscriptionConstants.SUBSCRIPTION_ORDER_NAME, SubscriptionConstants.SUBSCRIPTION_PRICE);
 
         // 5. subscription UPDATE (status: ACTIVE, 새 결제 수단 연결, retryCount: 0, nextBillingAt: 현재 +1달)
-        subscription.resume(LocalDateTime.now().plusMonths(1), paymentMethod);
+        subscriptionWriter.updateResume(subscription, LocalDateTime.now().plusMonths(1), paymentMethod);
 
         return SubscriptionResumeResponseDto.from(subscription);
     }

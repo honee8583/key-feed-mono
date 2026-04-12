@@ -77,8 +77,4 @@ public class PaymentHistory {
     public void markCanceled() {
         this.status = PaymentHistoryStatus.CANCELED;
     }
-
-    public void linkSubscription(Subscription subscription) {
-        this.subscription = subscription;
-    }
 }

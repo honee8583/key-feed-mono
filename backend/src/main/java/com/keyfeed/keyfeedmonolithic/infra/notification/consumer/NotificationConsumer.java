@@ -59,7 +59,7 @@ public class NotificationConsumer {
             return;
         }
 
-        long startTime = System.currentTimeMillis();
+        long startTime = System.nanoTime();
 
         // ① 블로그 구독자 조회
         Set<Long> sourceSubscribers = new HashSet<>(
@@ -93,7 +93,7 @@ public class NotificationConsumer {
         // ⑤ 처리 완료 기록
         processRepository.save(NotificationProcessedContent.of(content.getContentId()));
 
-        log.info("[NotificationWorker] 처리 완료 - contentId: {}, 소요시간: {}ms", content.getContentId(), System.currentTimeMillis() - startTime);
+        log.info("[NotificationWorker] 처리 완료 - contentId: {}, 소요시간: {}ms", content.getContentId(), (System.nanoTime() - startTime) / 1_000_000);
     }
 
     private Map<Long, Set<String>> collectMatchedKeywords(Set<Long> blogSubscriberIds, Set<String> keywords) {
@@ -141,9 +141,9 @@ public class NotificationConsumer {
         long totalInsertTime = 0;
         for (int i = 0; i < userIds.size(); i += CHUNK_SIZE) {
             List<Long> chunk = userIds.subList(i, Math.min(i + CHUNK_SIZE, userIds.size()));
-            long insertStart = System.currentTimeMillis();
+            long insertStart = System.nanoTime();
             notificationJdbcRepository.bulkInsertNotifications(chunk, userMatchedKeywords, content);
-            totalInsertTime += System.currentTimeMillis() - insertStart;
+            totalInsertTime += (System.nanoTime() - insertStart) / 1_000_000;
         }
 
         log.info("[NotificationConsumer] 배치 INSERT 완료 - {}명, {}ms", userIds.size(), totalInsertTime);

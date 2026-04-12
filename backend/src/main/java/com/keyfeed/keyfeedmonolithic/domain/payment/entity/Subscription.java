@@ -46,6 +46,13 @@ public class Subscription extends BaseTimeEntity {
     private LocalDateTime nextBillingAt;
     private LocalDateTime canceledAt;
 
+    public void activate(LocalDateTime now) {
+        this.status = SubscriptionStatus.ACTIVE;
+        this.startedAt = now;
+        this.expiredAt = now.plusMonths(1);
+        this.nextBillingAt = now.plusMonths(1);
+    }
+
     public void updatePaymentMethod(PaymentMethod paymentMethod) {
         this.paymentMethod = paymentMethod;
     }

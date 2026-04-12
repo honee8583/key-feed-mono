@@ -2,17 +2,18 @@ package com.keyfeed.keyfeedmonolithic.domain.payment.scheduler;
 
 import com.keyfeed.keyfeedmonolithic.domain.auth.entity.User;
 import com.keyfeed.keyfeedmonolithic.domain.notification.service.NotificationService;
+import com.keyfeed.keyfeedmonolithic.domain.payment.dto.ChargeResult;
 import com.keyfeed.keyfeedmonolithic.domain.payment.entity.*;
+import com.keyfeed.keyfeedmonolithic.domain.payment.exception.InvalidPaymentMethodException;
 import com.keyfeed.keyfeedmonolithic.domain.payment.exception.PaymentFailedException;
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.PaymentHistoryRepository;
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.SubscriptionRepository;
+import com.keyfeed.keyfeedmonolithic.domain.payment.service.BillingExecutor;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.TossPaymentsClient;
-import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossBillingChargeResponse;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossPaymentQueryResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -42,6 +43,9 @@ class BillingSchedulerTest {
     @Mock
     private NotificationService notificationService;
 
+    @Mock
+    private BillingExecutor billingExecutor;
+
     // ===== executeScheduledPayments =====
 
     @Test
@@ -49,13 +53,13 @@ class BillingSchedulerTest {
     void 자동결제_성공() {
         // given
         Subscription subscription = makeActiveSubscription(0);
-        TossBillingChargeResponse chargeResponse = makeChargeResponse();
+        ChargeResult chargeResult = makeChargeResult(subscription);
 
         given(subscriptionRepository.findByStatusAndNextBillingAtLessThanEqual(
                 eq(SubscriptionStatus.ACTIVE), any(LocalDateTime.class)))
                 .willReturn(List.of(subscription));
-        given(paymentHistoryRepository.save(any())).willAnswer(i -> i.getArgument(0));
-        given(tossPaymentsClient.chargeBilling(anyString(), any())).willReturn(chargeResponse);
+        given(billingExecutor.execute(any(), any(), eq(subscription), anyString(), anyInt()))
+                .willReturn(chargeResult);
 
         LocalDateTime beforeBilling = subscription.getNextBillingAt();
 
@@ -69,29 +73,6 @@ class BillingSchedulerTest {
     }
 
     @Test
-    @DisplayName("자동 결제 성공 - payment_history DONE 업데이트, paymentKey 저장")
-    void 자동결제_성공_history_DONE() {
-        // given
-        Subscription subscription = makeActiveSubscription(0);
-        TossBillingChargeResponse chargeResponse = makeChargeResponse();
-        ArgumentCaptor<PaymentHistory> historyCaptor = ArgumentCaptor.forClass(PaymentHistory.class);
-
-        given(subscriptionRepository.findByStatusAndNextBillingAtLessThanEqual(
-                eq(SubscriptionStatus.ACTIVE), any(LocalDateTime.class)))
-                .willReturn(List.of(subscription));
-        given(paymentHistoryRepository.save(historyCaptor.capture())).willAnswer(i -> i.getArgument(0));
-        given(tossPaymentsClient.chargeBilling(anyString(), any())).willReturn(chargeResponse);
-
-        // when
-        billingScheduler.executeScheduledPayments();
-
-        // then
-        PaymentHistory savedHistory = historyCaptor.getValue();
-        assertThat(savedHistory.getStatus()).isEqualTo(PaymentHistoryStatus.DONE);
-        assertThat(savedHistory.getPaymentKey()).isEqualTo("pay-key-001");
-    }
-
-    @Test
     @DisplayName("자동 결제 실패 - retryCount 1 증가, ACTIVE 유지 (3회 미만)")
     void 자동결제_실패_retryCount_증가() {
         // given
@@ -100,8 +81,8 @@ class BillingSchedulerTest {
         given(subscriptionRepository.findByStatusAndNextBillingAtLessThanEqual(
                 eq(SubscriptionStatus.ACTIVE), any(LocalDateTime.class)))
                 .willReturn(List.of(subscription));
-        given(paymentHistoryRepository.save(any())).willAnswer(i -> i.getArgument(0));
-        given(tossPaymentsClient.chargeBilling(anyString(), any())).willThrow(new PaymentFailedException());
+        given(billingExecutor.execute(any(), any(), eq(subscription), anyString(), anyInt()))
+                .willThrow(new PaymentFailedException());
 
         // when
         billingScheduler.executeScheduledPayments();
@@ -121,8 +102,8 @@ class BillingSchedulerTest {
         given(subscriptionRepository.findByStatusAndNextBillingAtLessThanEqual(
                 eq(SubscriptionStatus.ACTIVE), any(LocalDateTime.class)))
                 .willReturn(List.of(subscription));
-        given(paymentHistoryRepository.save(any())).willAnswer(i -> i.getArgument(0));
-        given(tossPaymentsClient.chargeBilling(anyString(), any())).willThrow(new PaymentFailedException());
+        given(billingExecutor.execute(any(), any(), eq(subscription), anyString(), anyInt()))
+                .willThrow(new PaymentFailedException());
 
         // when
         billingScheduler.executeScheduledPayments();
@@ -136,27 +117,27 @@ class BillingSchedulerTest {
     }
 
     @Test
-    @DisplayName("자동 결제 실패 - payment_history FAILED 업데이트")
-    void 자동결제_실패_history_FAILED() {
+    @DisplayName("자동 결제 실패 - InvalidPaymentMethodException도 retryCount 증가")
+    void 자동결제_실패_InvalidPaymentMethodException() {
         // given
         Subscription subscription = makeActiveSubscription(0);
-        ArgumentCaptor<PaymentHistory> historyCaptor = ArgumentCaptor.forClass(PaymentHistory.class);
 
         given(subscriptionRepository.findByStatusAndNextBillingAtLessThanEqual(
                 eq(SubscriptionStatus.ACTIVE), any(LocalDateTime.class)))
                 .willReturn(List.of(subscription));
-        given(paymentHistoryRepository.save(historyCaptor.capture())).willAnswer(i -> i.getArgument(0));
-        given(tossPaymentsClient.chargeBilling(anyString(), any())).willThrow(new PaymentFailedException());
+        given(billingExecutor.execute(any(), any(), eq(subscription), anyString(), anyInt()))
+                .willThrow(new InvalidPaymentMethodException());
 
         // when
         billingScheduler.executeScheduledPayments();
 
         // then
-        assertThat(historyCaptor.getValue().getStatus()).isEqualTo(PaymentHistoryStatus.FAILED);
+        assertThat(subscription.getRetryCount()).isEqualTo(1);
+        assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
     }
 
     @Test
-    @DisplayName("결제 대상 없음 - Toss API 호출 안 함")
+    @DisplayName("결제 대상 없음 - BillingExecutor 호출 안 함")
     void 자동결제_대상없음() {
         // given
         given(subscriptionRepository.findByStatusAndNextBillingAtLessThanEqual(
@@ -167,7 +148,7 @@ class BillingSchedulerTest {
         billingScheduler.executeScheduledPayments();
 
         // then
-        then(tossPaymentsClient).should(never()).chargeBilling(anyString(), any());
+        then(billingExecutor).should(never()).execute(any(), any(), any(), anyString(), anyInt());
     }
 
     @Test
@@ -176,15 +157,15 @@ class BillingSchedulerTest {
         // given
         Subscription sub1 = makeActiveSubscription(0);
         Subscription sub2 = makeActiveSubscriptionWithId(2L, 0);
-        TossBillingChargeResponse chargeResponse = makeChargeResponse();
+        ChargeResult chargeResult = makeChargeResult(sub2);
 
         given(subscriptionRepository.findByStatusAndNextBillingAtLessThanEqual(
                 eq(SubscriptionStatus.ACTIVE), any(LocalDateTime.class)))
                 .willReturn(List.of(sub1, sub2));
-        given(paymentHistoryRepository.save(any())).willAnswer(i -> i.getArgument(0));
-        given(tossPaymentsClient.chargeBilling(anyString(), any()))
-                .willThrow(new PaymentFailedException())  // sub1 실패
-                .willReturn(chargeResponse);              // sub2 성공
+        given(billingExecutor.execute(any(), any(), eq(sub1), anyString(), anyInt()))
+                .willThrow(new PaymentFailedException());
+        given(billingExecutor.execute(any(), any(), eq(sub2), anyString(), anyInt()))
+                .willReturn(chargeResult);
 
         // when
         billingScheduler.executeScheduledPayments();
@@ -192,7 +173,24 @@ class BillingSchedulerTest {
         // then
         assertThat(sub1.getRetryCount()).isEqualTo(1);
         assertThat(sub2.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
-        then(tossPaymentsClient).should(times(2)).chargeBilling(anyString(), any());
+        then(billingExecutor).should(times(2)).execute(any(), any(), any(), anyString(), anyInt());
+    }
+
+    @Test
+    @DisplayName("인프라 오류 - retryCount 증가 없이 로그만 기록")
+    void 자동결제_인프라오류_retryCount_증가없음() {
+        // given
+        Subscription subscription = makeActiveSubscription(0);
+
+        given(subscriptionRepository.findByStatusAndNextBillingAtLessThanEqual(
+                eq(SubscriptionStatus.ACTIVE), any(LocalDateTime.class)))
+                .willReturn(List.of(subscription));
+        given(billingExecutor.execute(any(), any(), eq(subscription), anyString(), anyInt()))
+                .willThrow(new RuntimeException("네트워크 오류"));
+
+        // when & then
+        assertThatCode(() -> billingScheduler.executeScheduledPayments()).doesNotThrowAnyException();
+        assertThat(subscription.getRetryCount()).isZero();
     }
 
     // ===== recoverReadyPayments =====
@@ -303,15 +301,23 @@ class BillingSchedulerTest {
                 .retryCount(retryCount).build();
     }
 
-    private TossBillingChargeResponse makeChargeResponse() {
+    private ChargeResult makeChargeResult(Subscription subscription) {
         try {
-            TossBillingChargeResponse response = new TossBillingChargeResponse();
+            PaymentHistory history = new PaymentHistory();
+            setField(history, "id", 1L);
+            setField(history, "orderId", "order-001");
+            setField(history, "status", PaymentHistoryStatus.DONE);
+            setField(history, "paymentKey", "pay-key-001");
+            setField(history, "amount", 9900);
+
+            var response = new com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossBillingChargeResponse();
             setField(response, "paymentKey", "pay-key-001");
             setField(response, "orderId", "order-001");
             setField(response, "status", "DONE");
             setField(response, "totalAmount", 9900L);
             setField(response, "approvedAt", "2026-04-05T10:00:00+09:00");
-            return response;
+
+            return new ChargeResult(history, response);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

@@ -31,7 +31,7 @@ public class ContentOutboxConsumer {
 
         log.info("[ContentOutboxConsumer] PENDING 이벤트 {}건 처리 시작", pendingEvents.size());
 
-        long startTime = System.currentTimeMillis();
+        long startTime = System.nanoTime();
         int success = 0;
         int fail = 0;
         for (Outbox outbox : pendingEvents) {
@@ -46,7 +46,7 @@ public class ContentOutboxConsumer {
         log.info("[ContentOutboxConsumer] 처리 완료 - 성공: {}건, 실패: {}건, 소요: {}ms",
                 success,
                 fail,
-                System.currentTimeMillis() - startTime);
+                (System.nanoTime() - startTime) / 1_000_000);
     }
 
     private boolean processEvent(Outbox outbox) {

@@ -22,7 +22,7 @@ public class LoggingAspectConfig {
 
     @Around("controllerLayer()")
     public Object logController(ProceedingJoinPoint joinPoint) throws Throwable {
-        long start = System.currentTimeMillis();
+        long start = System.nanoTime();
         String sig = joinPoint.getSignature().toShortString();
         Object[] args = joinPoint.getArgs();
 
@@ -30,7 +30,7 @@ public class LoggingAspectConfig {
         try {
             Object ret = joinPoint.proceed();
             log.info("⬅️ Controller exit  {} result={} ({} ms)",
-                    sig, shrink(ret), System.currentTimeMillis() - start);
+                    sig, shrink(ret), (System.nanoTime() - start) / 1_000_000);
             return ret;
         } catch (Throwable t) {
             log.error("💥 Controller error {} msg={}", sig, t.getMessage(), t);
