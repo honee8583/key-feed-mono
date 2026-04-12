@@ -3,6 +3,7 @@ package com.keyfeed.keyfeedmonolithic.domain.payment.writer;
 import com.keyfeed.keyfeedmonolithic.domain.auth.entity.User;
 import com.keyfeed.keyfeedmonolithic.domain.payment.entity.PaymentMethod;
 import com.keyfeed.keyfeedmonolithic.domain.payment.entity.Subscription;
+import com.keyfeed.keyfeedmonolithic.domain.payment.entity.SubscriptionConstants;
 import com.keyfeed.keyfeedmonolithic.domain.payment.entity.SubscriptionStatus;
 
 import java.time.LocalDateTime;
@@ -18,9 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SubscriptionWriter {
 
-    private static final int SUBSCRIPTION_PRICE = 100;
-    private static final String SUBSCRIPTION_ORDER_NAME = "프리미엄 구독 1개월";
-
     private final SubscriptionRepository subscriptionRepository;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -31,8 +29,8 @@ public class SubscriptionWriter {
                             .user(user)
                             .paymentMethod(paymentMethod)
                             .status(SubscriptionStatus.PENDING)
-                            .price(SUBSCRIPTION_PRICE)
-                            .orderName(SUBSCRIPTION_ORDER_NAME)
+                            .price(SubscriptionConstants.SUBSCRIPTION_PRICE)
+                            .orderName(SubscriptionConstants.SUBSCRIPTION_ORDER_NAME)
                             .retryCount(0)
                             .build()
             );

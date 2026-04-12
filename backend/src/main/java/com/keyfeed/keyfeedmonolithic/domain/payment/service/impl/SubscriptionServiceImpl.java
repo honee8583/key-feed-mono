@@ -28,9 +28,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SubscriptionServiceImpl implements SubscriptionService {
 
-    private static final int SUBSCRIPTION_PRICE = 100;
-    private static final String SUBSCRIPTION_ORDER_NAME = "프리미엄 구독 1개월";
-
     private final SubscriptionRepository subscriptionRepository;
     private final PaymentMethodRepository paymentMethodRepository;
     private final PaymentHistoryRepository paymentHistoryRepository;
@@ -61,7 +58,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         try {
             // 5. 결제 실행
             result = billingExecutor.execute(
-                    user, paymentMethod, subscription, SUBSCRIPTION_ORDER_NAME, SUBSCRIPTION_PRICE
+                    user, paymentMethod, subscription, SubscriptionConstants.SUBSCRIPTION_ORDER_NAME, SubscriptionConstants.SUBSCRIPTION_PRICE
             );
 
             // 6. Subscription ACTIVE 업데이트 (즉시 커밋)
@@ -115,7 +112,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 .orElseThrow(() -> new EntityNotFoundException("User", userId));
 
         // 4. 밀린 결제 즉시 재시도 (READY 선저장 → chargeBilling → markDone/markFailed)
-        billingExecutor.execute(user, paymentMethod, subscription, SUBSCRIPTION_ORDER_NAME, SUBSCRIPTION_PRICE);
+        billingExecutor.execute(user, paymentMethod, subscription, SubscriptionConstants.SUBSCRIPTION_ORDER_NAME, SubscriptionConstants.SUBSCRIPTION_PRICE);
 
         // 5. subscription UPDATE (status: ACTIVE, 새 결제 수단 연결, retryCount: 0, nextBillingAt: 현재 +1달)
         subscriptionWriter.updateResume(subscription, LocalDateTime.now().plusMonths(1), paymentMethod);
