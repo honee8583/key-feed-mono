@@ -58,7 +58,7 @@ public class TossPaymentsClient {
     // 빌링키 발급: 카드 등록 완료 후 authKey와 customerKey로 빌링키를 발급받는다
     public TossBillingIssueResponse issueBillingKey(TossBillingIssueRequest request) {
         log.info("[Toss] 빌링키 발급 요청 - customerKey: {}", request.getCustomerKey());
-        long start = System.currentTimeMillis();
+        long start = System.nanoTime();
 
         URI uri = UriComponentsBuilder.fromUriString(properties.getBaseUrl())
                 .path(PATH_BILLING_ISSUE)
@@ -81,7 +81,7 @@ public class TossPaymentsClient {
     public TossBillingChargeResponse chargeBilling(String billingKey, TossBillingChargeRequest request) {
         log.info("[Toss] 결제 요청 - orderId: {}, amount: {}, billingKey: {}",
                 request.getOrderId(), request.getAmount(), mask(billingKey));
-        long start = System.currentTimeMillis();
+        long start = System.nanoTime();
 
         URI uri = UriComponentsBuilder.fromUriString(properties.getBaseUrl())
                 .path(PATH_BILLING)
@@ -105,7 +105,7 @@ public class TossPaymentsClient {
     public void cancelPayment(String paymentKey, TossPaymentCancelRequest request) {
         log.info("[Toss] 결제 취소 요청 - paymentKey: {}, reason: {}",
                 paymentKey, request.getCancelReason());
-        long start = System.currentTimeMillis();
+        long start = System.nanoTime();
 
         URI uri = UriComponentsBuilder.fromUriString(properties.getBaseUrl())
                 .path(PATH_PAYMENT_CANCEL)
@@ -129,7 +129,7 @@ public class TossPaymentsClient {
     // 결제 조회: orderId로 결제 건의 실제 처리 상태를 조회한다 (서버 재시작 시 READY 복구용)
     public TossPaymentQueryResponse getPaymentByOrderId(String orderId) {
         log.info("[Toss] 결제 조회 요청 - orderId: {}", orderId);
-        long start = System.currentTimeMillis();
+        long start = System.nanoTime();
 
         URI uri = UriComponentsBuilder.fromUriString(properties.getBaseUrl())
                 .path(PATH_PAYMENT_BY_ORDER)
@@ -152,7 +152,7 @@ public class TossPaymentsClient {
     // 빌링키 삭제: 사용자가 결제 수단을 삭제할 때 빌링키를 만료시킨다
     public void deleteBillingKey(String billingKey) {
         log.info("[Toss] 빌링키 삭제 요청 - billingKey: {}", mask(billingKey));
-        long start = System.currentTimeMillis();
+        long start = System.nanoTime();
 
         URI uri = UriComponentsBuilder.fromUriString(properties.getBaseUrl())
                 .path(PATH_BILLING)
@@ -238,6 +238,6 @@ public class TossPaymentsClient {
     }
 
     private long elapsed(long start) {
-        return System.currentTimeMillis() - start;
+        return (System.nanoTime() - start) / 1_000_000;
     }
 }
