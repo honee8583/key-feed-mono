@@ -161,6 +161,44 @@ class SubscriptionWriterTest {
         then(subscriptionRepository).should().save(subscription);
     }
 
+    // ===== updateResume =====
+
+    @Test
+    @DisplayName("updateResume - 구독 상태가 ACTIVE로 전환되고 nextBillingAt이 갱신된다")
+    void updateResume_ACTIVE_전환() {
+        // given
+        User user = makeUser(1L);
+        PaymentMethod newPaymentMethod = makePaymentMethod(user);
+        Subscription subscription = makeSubscription(user, SubscriptionStatus.PAUSED);
+        LocalDateTime nextBillingAt = LocalDateTime.now().plusMonths(1);
+        given(subscriptionRepository.save(any())).willAnswer(i -> i.getArgument(0));
+
+        // when
+        subscriptionWriter.updateResume(subscription, nextBillingAt, newPaymentMethod);
+
+        // then
+        assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
+        assertThat(subscription.getNextBillingAt()).isEqualTo(nextBillingAt);
+        assertThat(subscription.getRetryCount()).isZero();
+        assertThat(subscription.getPaymentMethod()).isEqualTo(newPaymentMethod);
+    }
+
+    @Test
+    @DisplayName("updateResume - repository save가 호출된다")
+    void updateResume_save_호출() {
+        // given
+        User user = makeUser(1L);
+        PaymentMethod paymentMethod = makePaymentMethod(user);
+        Subscription subscription = makeSubscription(user, SubscriptionStatus.PAUSED);
+        given(subscriptionRepository.save(any())).willAnswer(i -> i.getArgument(0));
+
+        // when
+        subscriptionWriter.updateResume(subscription, LocalDateTime.now().plusMonths(1), paymentMethod);
+
+        // then
+        then(subscriptionRepository).should().save(subscription);
+    }
+
     // ===== helpers =====
 
     private User makeUser(Long id) {

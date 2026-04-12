@@ -42,9 +42,8 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private final PaymentHistoryWriter paymentHistoryWriter;
 
     @Override
-    @Transactional
     public SubscriptionStartResponseDto startSubscription(Long userId, SubscriptionStartRequestDto request) {
-        // 1. 사용자 락 조회 (토스 API 호출에 필요한 customerKey, email, name)
+        // 1. 사용자 조회 (토스 API 호출에 필요한 customerKey, email, name)
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User", userId));
 
@@ -53,13 +52,9 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             throw new ActiveSubscriptionAlreadyExistsException();
         }
 
-        // 3. methodId가 본인 소유이고 활성 상태인지 검증
-        PaymentMethod paymentMethod = paymentMethodRepository.findByIdAndIsActiveTrue(request.getMethodId())
+        // 3. methodId가 본인 소유이고 활성 상태인지 검증 (쿼리에서 소유권까지 함께 확인)
+        PaymentMethod paymentMethod = paymentMethodRepository.findByIdAndUserIdAndIsActiveTrue(request.getMethodId(), userId)
                 .orElseThrow(PaymentMethodNotFoundException::new);
-
-        if (!paymentMethod.getUser().getId().equals(userId)) {
-            throw new PaymentMethodNotFoundException();
-        }
 
         // 4. 구독 선저장(PENDING)
         Subscription subscription = subscriptionWriter.savePending(user, paymentMethod);
@@ -111,19 +106,14 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     }
 
     @Override
-    @Transactional
     public SubscriptionResumeResponseDto resumeSubscription(Long userId, SubscriptionResumeRequestDto request) {
         // 1. PAUSED 상태의 구독이 있는지 검증
         Subscription subscription = subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.PAUSED)
                 .orElseThrow(PausedSubscriptionNotFoundException::new);
 
-        // 2. methodId가 본인 소유이고 활성 상태인지 검증
-        PaymentMethod paymentMethod = paymentMethodRepository.findByIdAndIsActiveTrue(request.getMethodId())
+        // 2. methodId가 본인 소유이고 활성 상태인지 검증 (쿼리에서 소유권까지 함께 확인)
+        PaymentMethod paymentMethod = paymentMethodRepository.findByIdAndUserIdAndIsActiveTrue(request.getMethodId(), userId)
                 .orElseThrow(PaymentMethodNotFoundException::new);
-
-        if (!paymentMethod.getUser().getId().equals(userId)) {
-            throw new PaymentMethodNotFoundException();
-        }
 
         // 3. 사용자 조회 (토스 API 호출에 필요한 customerKey, email, name)
         User user = userRepository.findById(userId)
@@ -133,7 +123,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         billingExecutor.execute(user, paymentMethod, subscription, SUBSCRIPTION_ORDER_NAME, SUBSCRIPTION_PRICE);
 
         // 5. subscription UPDATE (status: ACTIVE, 새 결제 수단 연결, retryCount: 0, nextBillingAt: 현재 +1달)
-        subscription.resume(LocalDateTime.now().plusMonths(1), paymentMethod);
+        subscriptionWriter.updateResume(subscription, LocalDateTime.now().plusMonths(1), paymentMethod);
 
         return SubscriptionResumeResponseDto.from(subscription);
     }

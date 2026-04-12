@@ -73,7 +73,7 @@ class SubscriptionServiceImplTest {
 
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(subscriptionRepository.existsByUserIdAndStatusIn(eq(userId), anyList())).willReturn(false);
-        given(paymentMethodRepository.findByIdAndIsActiveTrue(methodId)).willReturn(Optional.of(paymentMethod));
+        given(paymentMethodRepository.findByIdAndUserIdAndIsActiveTrue(methodId, userId)).willReturn(Optional.of(paymentMethod));
         given(subscriptionWriter.savePending(user, paymentMethod)).willReturn(pendingSubscription);
         given(billingExecutor.execute(eq(user), eq(paymentMethod), eq(pendingSubscription), anyString(), anyInt()))
                 .willReturn(chargeResult);
@@ -114,7 +114,7 @@ class SubscriptionServiceImplTest {
         Long userId = 1L;
         given(userRepository.findById(userId)).willReturn(Optional.of(makeUser(userId)));
         given(subscriptionRepository.existsByUserIdAndStatusIn(eq(userId), anyList())).willReturn(false);
-        given(paymentMethodRepository.findByIdAndIsActiveTrue(anyLong())).willReturn(Optional.empty());
+        given(paymentMethodRepository.findByIdAndUserIdAndIsActiveTrue(anyLong(), eq(userId))).willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> subscriptionService.startSubscription(userId, makeStartRequest(99L)))
@@ -132,7 +132,7 @@ class SubscriptionServiceImplTest {
 
         given(userRepository.findById(userId)).willReturn(Optional.of(makeUser(userId)));
         given(subscriptionRepository.existsByUserIdAndStatusIn(eq(userId), anyList())).willReturn(false);
-        given(paymentMethodRepository.findByIdAndIsActiveTrue(10L)).willReturn(Optional.of(otherMethod));
+        given(paymentMethodRepository.findByIdAndUserIdAndIsActiveTrue(10L, userId)).willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> subscriptionService.startSubscription(userId, makeStartRequest(10L)))
@@ -151,7 +151,7 @@ class SubscriptionServiceImplTest {
 
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(subscriptionRepository.existsByUserIdAndStatusIn(eq(userId), anyList())).willReturn(false);
-        given(paymentMethodRepository.findByIdAndIsActiveTrue(methodId)).willReturn(Optional.of(paymentMethod));
+        given(paymentMethodRepository.findByIdAndUserIdAndIsActiveTrue(methodId, userId)).willReturn(Optional.of(paymentMethod));
         given(subscriptionWriter.savePending(user, paymentMethod)).willReturn(pendingSubscription);
         given(billingExecutor.execute(any(), any(), any(), anyString(), anyInt()))
                 .willThrow(new PaymentFailedException());
@@ -274,10 +274,14 @@ class SubscriptionServiceImplTest {
 
         given(subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.PAUSED))
                 .willReturn(Optional.of(subscription));
-        given(paymentMethodRepository.findByIdAndIsActiveTrue(methodId)).willReturn(Optional.of(paymentMethod));
+        given(paymentMethodRepository.findByIdAndUserIdAndIsActiveTrue(methodId, userId)).willReturn(Optional.of(paymentMethod));
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(billingExecutor.execute(eq(user), eq(paymentMethod), eq(subscription), anyString(), anyInt()))
                 .willReturn(chargeResult);
+        willAnswer(invocation -> {
+            subscription.resume(invocation.getArgument(1), invocation.getArgument(2));
+            return null;
+        }).given(subscriptionWriter).updateResume(eq(subscription), any(), eq(paymentMethod));
 
         SubscriptionResumeRequestDto request = makeResumeRequest(methodId);
 
@@ -287,7 +291,7 @@ class SubscriptionServiceImplTest {
         // then
         assertThat(result.getStatus()).isEqualTo("ACTIVE");
         assertThat(result.getNextBillingAt()).isNotNull();
-        assertThat(subscription.getRetryCount()).isZero();
+        then(subscriptionWriter).should().updateResume(eq(subscription), any(), eq(paymentMethod));
     }
 
     @Test
@@ -314,7 +318,7 @@ class SubscriptionServiceImplTest {
 
         given(subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.PAUSED))
                 .willReturn(Optional.of(subscription));
-        given(paymentMethodRepository.findByIdAndIsActiveTrue(99L)).willReturn(Optional.empty());
+        given(paymentMethodRepository.findByIdAndUserIdAndIsActiveTrue(99L, userId)).willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> subscriptionService.resumeSubscription(userId, makeResumeRequest(99L)))
@@ -333,7 +337,7 @@ class SubscriptionServiceImplTest {
 
         given(subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.PAUSED))
                 .willReturn(Optional.of(subscription));
-        given(paymentMethodRepository.findByIdAndIsActiveTrue(methodId)).willReturn(Optional.of(paymentMethod));
+        given(paymentMethodRepository.findByIdAndUserIdAndIsActiveTrue(methodId, userId)).willReturn(Optional.of(paymentMethod));
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(billingExecutor.execute(any(), any(), any(), anyString(), anyInt()))
                 .willThrow(new PaymentFailedException());

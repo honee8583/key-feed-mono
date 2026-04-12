@@ -4,6 +4,8 @@ import com.keyfeed.keyfeedmonolithic.domain.auth.entity.User;
 import com.keyfeed.keyfeedmonolithic.domain.payment.entity.PaymentMethod;
 import com.keyfeed.keyfeedmonolithic.domain.payment.entity.Subscription;
 import com.keyfeed.keyfeedmonolithic.domain.payment.entity.SubscriptionStatus;
+
+import java.time.LocalDateTime;
 import com.keyfeed.keyfeedmonolithic.domain.payment.exception.ActiveSubscriptionAlreadyExistsException;
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.SubscriptionRepository;
 import lombok.RequiredArgsConstructor;
@@ -11,8 +13,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
 
 @Component
 @RequiredArgsConstructor
@@ -51,6 +51,12 @@ public class SubscriptionWriter {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void updateCanceled(Subscription subscription) {
         subscription.cancel();
+        subscriptionRepository.save(subscription);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void updateResume(Subscription subscription, LocalDateTime nextBillingAt, PaymentMethod paymentMethod) {
+        subscription.resume(nextBillingAt, paymentMethod);
         subscriptionRepository.save(subscription);
     }
 }
