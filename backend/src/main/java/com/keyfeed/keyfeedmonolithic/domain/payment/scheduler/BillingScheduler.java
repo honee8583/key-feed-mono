@@ -8,6 +8,7 @@ import com.keyfeed.keyfeedmonolithic.domain.payment.exception.PaymentFailedExcep
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.PaymentHistoryRepository;
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.SubscriptionRepository;
 import com.keyfeed.keyfeedmonolithic.domain.payment.service.BillingExecutor;
+import com.keyfeed.keyfeedmonolithic.domain.payment.writer.SubscriptionWriter;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.TossPaymentsClient;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossPaymentQueryResponse;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class BillingScheduler {
     private final TossPaymentsClient tossPaymentsClient;
     private final NotificationService notificationService;
     private final BillingExecutor billingExecutor;
+    private final SubscriptionWriter subscriptionWriter;
 
     /**
      * 자동 결제 스케줄러 — 매일 오전 10시 실행
@@ -62,11 +64,18 @@ public class BillingScheduler {
     }
 
     /**
-     * 서버 재시작 시 READY 상태 복구 로직
+     * 서버 재시작 시 복구 로직
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    public void onApplicationReady() {
+        recoverReadyPayments();
+        recoverPendingSubscriptions();
+    }
+
+    /**
+     * READY 상태 복구 로직
      * 10분 이상 READY 상태로 남아있는 건을 Toss API로 상태 확인 후 동기화
      */
-    // TODO 주기적 배치로 변경
-    @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void recoverReadyPayments() {
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(READY_STALE_MINUTES);
@@ -83,6 +92,49 @@ public class BillingScheduler {
 
         for (PaymentHistory history : staleReadyList) {
             recoverHistory(history);
+        }
+    }
+
+    /**
+     * PENDING 상태 구독 복구 로직
+     * 결제 플로우 도중 서버가 중단된 경우 PENDING 상태로 방치된 구독을 복구한다.
+     * 매 시간 실행되며 서버 시작 시에도 onApplicationReady()를 통해 호출된다.
+     */
+    @Scheduled(cron = "0 0 * * * *")
+    public void recoverPendingSubscriptions() {
+        // 1. 결제 플로우 진행 중인 구독과 구분하기 위해 임계 시간(30분) 이전에 생성된 PENDING 구독만 조회
+        LocalDateTime threshold = LocalDateTime.now().minusMinutes(SubscriptionConstants.PENDING_STALE_MINUTES);
+        List<Subscription> pendingList = subscriptionRepository
+                .findByStatusAndCreatedAtBefore(SubscriptionStatus.PENDING, threshold);
+
+        if (pendingList.isEmpty()) {
+            return;
+        }
+
+        log.info("[BillingScheduler] PENDING 구독 복구 대상: {}건", pendingList.size());
+
+        for (Subscription subscription : pendingList) {
+            try {
+                // 2. 해당 구독에 연결된 DONE 결제 내역 조회
+                //    - DONE 존재: 결제는 완료됐으나 updateActive가 실패한 케이스 → ACTIVE로 복구
+                //    - DONE 없음: 결제 전 또는 결제 실패 후 방치된 케이스 → CANCELED로 정리
+                paymentHistoryRepository
+                        .findTopBySubscriptionIdAndStatusOrderByCreatedAtDesc(
+                                subscription.getId(), PaymentHistoryStatus.DONE)
+                        .ifPresentOrElse(
+                                doneHistory -> {
+                                    subscriptionWriter.updateActive(subscription);
+                                    log.info("[BillingScheduler] PENDING→ACTIVE 복구 - subscriptionId: {}", subscription.getId());
+                                },
+                                () -> {
+                                    subscriptionWriter.updateCanceled(subscription);
+                                    log.warn("[BillingScheduler] 방치된 PENDING→CANCELED 정리 - subscriptionId: {}", subscription.getId());
+                                }
+                        );
+            } catch (Exception e) {
+                // 3. 개별 구독 복구 실패 시 다음 구독 처리를 위해 예외를 삼키고 로그만 기록
+                log.error("[BillingScheduler] PENDING 복구 실패 - subscriptionId: {}", subscription.getId(), e);
+            }
         }
     }
 

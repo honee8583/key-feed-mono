@@ -52,24 +52,26 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 .orElseThrow(PaymentMethodNotFoundException::new);
 
         // 4. 구독 선저장(PENDING)
+        // 중복 결제 바잊 선저장, PaymentHistory에서 필요
         Subscription subscription = subscriptionWriter.savePending(user, paymentMethod);
 
-        ChargeResult result = null;
+        // 5. 결제 실행
+        // 결제내역(READY) 저장 -> 결제 API 호출 -> 결제내역 상태(DONE) 업데이트
+        ChargeResult result;
         try {
-            // 5. 결제 실행
             result = billingExecutor.execute(
                     user, paymentMethod, subscription, SubscriptionConstants.SUBSCRIPTION_ORDER_NAME, SubscriptionConstants.SUBSCRIPTION_PRICE
             );
-
-            // 6. Subscription ACTIVE 업데이트 (즉시 커밋)
-            subscriptionWriter.updateActive(subscription);
-
-            return SubscriptionStartResponseDto.from(subscription, result.history());
-
         } catch (Exception e) {
+            // 결제 자체가 실패한 경우 → 실제 청구 없음, 구독 CANCELED 처리
             subscriptionWriter.updateCanceled(subscription);
             throw e;
         }
+
+        // 6. Subscription ACTIVE 업데이트 (즉시 커밋)
+        subscriptionWriter.updateActive(subscription);
+
+        return SubscriptionStartResponseDto.from(subscription, result.history());
     }
 
     @Override
