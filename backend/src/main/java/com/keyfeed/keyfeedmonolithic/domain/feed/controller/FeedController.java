@@ -4,6 +4,7 @@ import com.keyfeed.keyfeedmonolithic.domain.content.dto.ContentFeedResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.feed.service.FeedService;
 import com.keyfeed.keyfeedmonolithic.global.response.CommonPageResponse;
 import com.keyfeed.keyfeedmonolithic.global.response.HttpResponse;
+import com.keyfeed.keyfeedmonolithic.global.response.OffsetPageResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +29,16 @@ public class FeedController {
                                         @RequestParam(value = "size", defaultValue = "10") int size,
                                         @RequestParam(value = "keyword", required = false) String keyword) {
         CommonPageResponse<ContentFeedResponseDto> feeds = feedService.getPersonalizedFeeds(userId, lastId, size, keyword);
+        return ResponseEntity.ok()
+                .body(new HttpResponse(HttpStatus.OK, READ_SUCCESS.getMessage(), feeds));
+    }
+
+    @GetMapping("/offset")
+    public ResponseEntity<?> getMyFeedsWithOffset(@AuthenticationPrincipal Long userId,
+                                                  @RequestParam(value = "page", defaultValue = "0") int page,
+                                                  @RequestParam(value = "size", defaultValue = "10") int size,
+                                                  @RequestParam(value = "keyword", required = false) String keyword) {
+        OffsetPageResponse<ContentFeedResponseDto> feeds = feedService.getPersonalizedFeedsWithOffset(userId, page, size, keyword);
         return ResponseEntity.ok()
                 .body(new HttpResponse(HttpStatus.OK, READ_SUCCESS.getMessage(), feeds));
     }

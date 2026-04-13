@@ -1,6 +1,7 @@
 package com.keyfeed.keyfeedmonolithic.domain.content.repository;
 
 import com.keyfeed.keyfeedmonolithic.domain.content.entity.Content;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -70,6 +71,15 @@ public interface ContentRepository extends JpaRepository<Content, Long> {
                                             @Param("lastCheckedAt") LocalDateTime lastCheckedAt,
                                             @Param("lastId") Long lastId,
                                             @Param("size") int size);
+
+    // 오프셋 기반 피드 조회 (전체 카운트 포함)
+    @Query(value = "SELECT c FROM Content c WHERE c.sourceId IN :sourceIds ORDER BY c.id DESC",
+           countQuery = "SELECT COUNT(c) FROM Content c WHERE c.sourceId IN :sourceIds")
+    Page<Content> findPageBySourceIds(@Param("sourceIds") List<Long> sourceIds, Pageable pageable);
+
+    @Query(value = "SELECT c FROM Content c WHERE c.sourceId IN :sourceIds AND (c.title LIKE %:keyword% OR c.summary LIKE %:keyword%) ORDER BY c.id DESC",
+           countQuery = "SELECT COUNT(c) FROM Content c WHERE c.sourceId IN :sourceIds AND (c.title LIKE %:keyword% OR c.summary LIKE %:keyword%)")
+    Page<Content> searchPageBySourceIds(@Param("sourceIds") List<Long> sourceIds, @Param("keyword") String keyword, Pageable pageable);
 
     // 읽지 않은 알림 수
     @Query(value = """
