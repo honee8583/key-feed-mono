@@ -8,8 +8,10 @@ import com.keyfeed.keyfeedmonolithic.domain.feed.service.FeedService;
 import com.keyfeed.keyfeedmonolithic.domain.source.dto.SourceResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.source.service.SourceService;
 import com.keyfeed.keyfeedmonolithic.global.response.CommonPageResponse;
+import com.keyfeed.keyfeedmonolithic.global.response.OffsetPageResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -62,6 +64,45 @@ public class FeedServiceImpl implements FeedService {
                 .content(feeds)
                 .hasNext(hasNext)
                 .nextCursorId(nextCursorId)
+                .build();
+    }
+
+    @Override
+    public OffsetPageResponse<ContentFeedResponseDto> getPersonalizedFeedsWithOffset(Long userId, int page, int size, String keyword) {
+        List<SourceResponseDto> userSources = sourceService.getSourcesByUser(userId);
+        if (CollectionUtils.isEmpty(userSources)) {
+            return OffsetPageResponse.empty();
+        }
+
+        Map<Long, SourceResponseDto> sourceMap = userSources.stream()
+                .collect(Collectors.toMap(
+                        SourceResponseDto::getSourceId,
+                        source -> source,
+                        (existing, replacement) -> existing
+                ));
+
+        List<Long> sourceIds = new ArrayList<>(sourceMap.keySet());
+
+        int safeSize = Math.min(size, 50);
+        Pageable pageable = PageRequest.of(page, safeSize);
+
+        Page<Content> contentPage = StringUtils.hasText(keyword)
+                ? contentRepository.searchPageBySourceIds(sourceIds, keyword, pageable)
+                : contentRepository.findPageBySourceIds(sourceIds, pageable);
+
+        List<ContentFeedResponseDto> feeds = contentPage.getContent().stream()
+                .map(content -> ContentFeedResponseDto.from(content, sourceMap.get(content.getSourceId())))
+                .collect(Collectors.toList());
+
+        attachBookmarkStatus(userId, feeds);
+
+        return OffsetPageResponse.<ContentFeedResponseDto>builder()
+                .content(feeds)
+                .page(contentPage.getNumber())
+                .size(contentPage.getSize())
+                .totalElements(contentPage.getTotalElements())
+                .totalPages(contentPage.getTotalPages())
+                .hasNext(contentPage.hasNext())
                 .build();
     }
 
