@@ -19,6 +19,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -76,7 +77,7 @@ class KeywordServiceImplTest {
 
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(keywordRepository.existsByNameAndUser(keywordName, user)).willReturn(false);
-        given(subscriptionRepository.existsByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)).willReturn(false);
+        given(subscriptionRepository.existsByUserIdAndStatusIn(userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED))).willReturn(false);
         given(keywordRepository.countByUserId(userId)).willReturn(2L);
         given(keywordRepository.save(any(Keyword.class))).willReturn(keyword);
 
@@ -98,7 +99,7 @@ class KeywordServiceImplTest {
 
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(keywordRepository.existsByNameAndUser(keywordName, user)).willReturn(false);
-        given(subscriptionRepository.existsByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)).willReturn(false);
+        given(subscriptionRepository.existsByUserIdAndStatusIn(userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED))).willReturn(false);
         given(keywordRepository.countByUserId(userId)).willReturn(3L);
 
         // when & then
@@ -120,7 +121,7 @@ class KeywordServiceImplTest {
 
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(keywordRepository.existsByNameAndUser(keywordName, user)).willReturn(false);
-        given(subscriptionRepository.existsByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)).willReturn(true);
+        given(subscriptionRepository.existsByUserIdAndStatusIn(userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED))).willReturn(true);
         given(keywordRepository.save(any(Keyword.class))).willReturn(keyword);
 
         // when
@@ -143,7 +144,7 @@ class KeywordServiceImplTest {
 
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(keywordRepository.existsByNameAndUser(keywordName, user)).willReturn(false);
-        given(subscriptionRepository.existsByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)).willReturn(true);
+        given(subscriptionRepository.existsByUserIdAndStatusIn(userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED))).willReturn(true);
         given(keywordRepository.save(any(Keyword.class))).willReturn(keyword);
 
         // when
@@ -152,6 +153,29 @@ class KeywordServiceImplTest {
         // then
         assertThat(result).isNotNull();
         then(keywordRepository).should(never()).countByUserId(any());
+    }
+
+    @Test
+    @DisplayName("구독자(CANCELED, 만료 전) - 한도 초과해도 키워드 추가 성공")
+    void 구독_취소_만료전_한도_초과해도_키워드_추가_성공() {
+        // given
+        Long userId = 8L;
+        String keywordName = "쿠버네티스";
+        User user = makeUser(userId);
+        Keyword keyword = makeKeyword(1L, user, keywordName);
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(keywordRepository.existsByNameAndUser(keywordName, user)).willReturn(false);
+        given(subscriptionRepository.existsByUserIdAndStatusIn(userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED))).willReturn(true);
+        given(keywordRepository.save(any(Keyword.class))).willReturn(keyword);
+
+        // when
+        KeywordResponseDto result = keywordService.addKeyword(userId, keywordName);
+
+        // then
+        assertThat(result.getName()).isEqualTo(keywordName);
+        then(keywordRepository).should(never()).countByUserId(userId);
+        then(keywordRepository).should(times(1)).save(any(Keyword.class));
     }
 
     @Test
@@ -169,7 +193,7 @@ class KeywordServiceImplTest {
         assertThatThrownBy(() -> keywordService.addKeyword(userId, keywordName))
                 .isInstanceOf(EntityAlreadyExistsException.class);
 
-        then(subscriptionRepository).should(never()).existsByUserIdAndStatus(any(), any());
+        then(subscriptionRepository).should(never()).existsByUserIdAndStatusIn(any(), any());
         then(keywordRepository).should(never()).save(any(Keyword.class));
     }
 
@@ -198,7 +222,7 @@ class KeywordServiceImplTest {
 
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(keywordRepository.existsByNameAndUser(keywordName, user)).willReturn(false);
-        given(subscriptionRepository.existsByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)).willReturn(false);
+        given(subscriptionRepository.existsByUserIdAndStatusIn(userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED))).willReturn(false);
         given(keywordRepository.countByUserId(userId)).willReturn((long) KEYWORD_MAX_COUNT);
 
         // when & then
@@ -217,7 +241,7 @@ class KeywordServiceImplTest {
 
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(keywordRepository.existsByNameAndUser(keywordName, user)).willReturn(false);
-        given(subscriptionRepository.existsByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)).willReturn(false);
+        given(subscriptionRepository.existsByUserIdAndStatusIn(userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED))).willReturn(false);
         given(keywordRepository.countByUserId(userId)).willReturn((long) KEYWORD_MAX_COUNT - 1);
         given(keywordRepository.save(any(Keyword.class))).willReturn(keyword);
 

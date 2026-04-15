@@ -54,8 +54,7 @@ public class KeywordServiceImpl implements KeywordService {
             throw new EntityAlreadyExistsException("Keyword", name);
         }
 
-        boolean isActiveSubscriber = subscriptionRepository.existsByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE);
-        if (!isActiveSubscriber && keywordRepository.countByUserId(userId) >= keywordMaxCount) {
+        if (!hasKeywordBenefit(userId) && keywordRepository.countByUserId(userId) >= keywordMaxCount) {
             throw new KeywordLimitExceededException();
         }
 
@@ -105,6 +104,11 @@ public class KeywordServiceImpl implements KeywordService {
                 .stream()
                 .map(projection -> new TrendingKeywordResponseDto(projection.getName(), projection.getUserCount()))
                 .toList();
+    }
+
+    private boolean hasKeywordBenefit(Long userId) {
+        return subscriptionRepository.existsByUserIdAndStatusIn(
+                userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED));
     }
 
     private User findUserById(Long userId) {
