@@ -45,7 +45,7 @@ jwt:
 
 app:
   limits:
-    keyword-max-count: 20
+    keyword-max-count: 3
     folder-max-count: 7
 
 cors:
