@@ -8,6 +8,8 @@ import com.keyfeed.keyfeedmonolithic.domain.keyword.entity.Keyword;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.exception.KeywordLimitExceededException;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.repository.KeywordRepository;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.service.KeywordService;
+import com.keyfeed.keyfeedmonolithic.domain.payment.entity.SubscriptionStatus;
+import com.keyfeed.keyfeedmonolithic.domain.payment.repository.SubscriptionRepository;
 import com.keyfeed.keyfeedmonolithic.global.error.exception.EntityAlreadyExistsException;
 import com.keyfeed.keyfeedmonolithic.global.error.exception.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,7 @@ public class KeywordServiceImpl implements KeywordService {
 
     private final KeywordRepository keywordRepository;
     private final UserRepository userRepository;
+    private final SubscriptionRepository subscriptionRepository;
 
     @Value("${app.limits.keyword-max-count}")
     private int keywordMaxCount;
@@ -51,7 +54,8 @@ public class KeywordServiceImpl implements KeywordService {
             throw new EntityAlreadyExistsException("Keyword", name);
         }
 
-        if (keywordRepository.countByUserId(userId) >= keywordMaxCount) {
+        boolean isActiveSubscriber = subscriptionRepository.existsByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE);
+        if (!isActiveSubscriber && keywordRepository.countByUserId(userId) >= keywordMaxCount) {
             throw new KeywordLimitExceededException();
         }
 
