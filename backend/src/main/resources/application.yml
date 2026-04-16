@@ -46,6 +46,7 @@ jwt:
 app:
   limits:
     keyword-max-count: 3
+    keyword-subscriber-max-count: 10
     folder-max-count: 3
     folder-subscriber-max-count: 20
 

@@ -36,6 +36,9 @@ public class KeywordServiceImpl implements KeywordService {
     @Value("${app.limits.keyword-max-count}")
     private int keywordMaxCount;
 
+    @Value("${app.limits.keyword-subscriber-max-count}")
+    private int keywordSubscriberMaxCount;
+
     @Override
     @Transactional(readOnly = true)
     public List<KeywordResponseDto> getKeywords(Long userId) {
@@ -54,7 +57,14 @@ public class KeywordServiceImpl implements KeywordService {
             throw new EntityAlreadyExistsException("Keyword", name);
         }
 
-        if (!hasKeywordBenefit(userId) && keywordRepository.countByUserId(userId) >= keywordMaxCount) {
+        int limit;
+        if (hasKeywordBenefit(userId)) {
+            limit = keywordSubscriberMaxCount;
+        } else {
+            limit = keywordMaxCount;
+        }
+
+        if (keywordRepository.countByUserId(userId) >= limit) {
             throw new KeywordLimitExceededException();
         }
 

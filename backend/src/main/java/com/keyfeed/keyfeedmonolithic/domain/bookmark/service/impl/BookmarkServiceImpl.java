@@ -217,7 +217,13 @@ public class BookmarkServiceImpl implements BookmarkService {
 
     // 북마크 폴더 최대 개수를 넘지 않는지 검증
     private void validateFolderCountLimit(Long userId) {
-        int limit = hasFolderBenefit(userId) ? folderSubscriberMaxCount : folderMaxCount;
+        int limit;
+        if (hasFolderBenefit(userId)) {
+            limit = folderSubscriberMaxCount;
+        } else {
+            limit = folderMaxCount;
+        }
+
         if (folderRepository.countByUserId(userId) >= limit) {
             throw new FolderLimitExceededException();
         }
