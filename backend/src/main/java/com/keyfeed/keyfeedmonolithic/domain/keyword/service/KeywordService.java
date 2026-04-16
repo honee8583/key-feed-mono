@@ -20,4 +20,8 @@ public interface KeywordService {
 
     List<TrendingKeywordResponseDto> getTrendingKeywords(int size);
 
+    void deactivateExcessKeywords(Long userId, int keepCount);
+
+    void reactivateAllKeywords(Long userId);
+
 }

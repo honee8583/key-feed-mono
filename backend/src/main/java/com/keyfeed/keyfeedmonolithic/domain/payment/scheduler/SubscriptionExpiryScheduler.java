@@ -1,10 +1,12 @@
 package com.keyfeed.keyfeedmonolithic.domain.payment.scheduler;
 
+import com.keyfeed.keyfeedmonolithic.domain.keyword.service.KeywordService;
 import com.keyfeed.keyfeedmonolithic.domain.payment.entity.Subscription;
 import com.keyfeed.keyfeedmonolithic.domain.payment.entity.SubscriptionStatus;
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.SubscriptionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +20,10 @@ import java.util.List;
 public class SubscriptionExpiryScheduler {
 
     private final SubscriptionRepository subscriptionRepository;
+    private final KeywordService keywordService;
+
+    @Value("${app.limits.keyword-max-count}")
+    private int keywordMaxCount;
 
     /**
      * 구독 만료 스케줄러 — 매일 자정 실행
@@ -33,6 +39,7 @@ public class SubscriptionExpiryScheduler {
 
         for (Subscription sub : expiredList) {
             sub.expire();
+            keywordService.deactivateExcessKeywords(sub.getUser().getId(), keywordMaxCount);
             log.info("[구독 만료] subscriptionId={}, userId={}", sub.getId(), sub.getUser().getId());
         }
 

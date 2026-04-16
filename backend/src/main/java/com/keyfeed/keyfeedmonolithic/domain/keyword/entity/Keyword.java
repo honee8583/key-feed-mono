@@ -27,8 +27,19 @@ public class Keyword extends BaseTimeEntity {
     @Builder.Default
     private boolean isNotificationEnabled = true;
 
+    @Builder.Default
+    private boolean isEnabled = true;
+
     public void setNotificationEnabled(boolean isNotificationEnabled) {
         this.isNotificationEnabled = isNotificationEnabled;
+    }
+
+    public void disable() {
+        this.isEnabled = false;
+    }
+
+    public void enable() {
+        this.isEnabled = true;
     }
 
 }
