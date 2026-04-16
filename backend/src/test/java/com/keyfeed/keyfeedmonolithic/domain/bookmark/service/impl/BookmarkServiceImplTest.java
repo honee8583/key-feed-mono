@@ -194,7 +194,7 @@ class BookmarkServiceImplTest {
     }
 
     @Test
-    @DisplayName("구독자(ACTIVE) - 구독자 한도(20개)에 도달하면 FolderLimitExceededException 발생")
+    @DisplayName("구독자(ACTIVE) - 구독자 한도(20개)에 도달하면 구독자용 메시지로 예외 발생")
     void 구독자_한도_도달_예외_발생() {
         // given
         Long userId = 6L;
@@ -208,7 +208,8 @@ class BookmarkServiceImplTest {
 
         // when & then
         assertThatThrownBy(() -> bookmarkService.createFolder(userId, request))
-                .isInstanceOf(FolderLimitExceededException.class);
+                .isInstanceOf(FolderLimitExceededException.class)
+                .hasMessageContaining("북마크 폴더 생성 한도(20개)에 도달했습니다");
 
         then(folderRepository).should(never()).save(any(BookmarkFolder.class));
     }

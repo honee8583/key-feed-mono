@@ -182,7 +182,7 @@ class KeywordServiceImplTest {
     }
 
     @Test
-    @DisplayName("구독자(ACTIVE) - 구독자 한도(10개)에 도달하면 KeywordLimitExceededException 발생")
+    @DisplayName("구독자(ACTIVE) - 구독자 한도(10개)에 도달하면 구독자용 메시지로 예외 발생")
     void 구독자_한도_도달_예외_발생() {
         // given
         Long userId = 6L;
@@ -196,7 +196,8 @@ class KeywordServiceImplTest {
 
         // when & then
         assertThatThrownBy(() -> keywordService.addKeyword(userId, keywordName))
-                .isInstanceOf(KeywordLimitExceededException.class);
+                .isInstanceOf(KeywordLimitExceededException.class)
+                .hasMessageContaining("키워드 등록 한도(10개)에 도달했습니다");
 
         then(keywordRepository).should(never()).save(any(Keyword.class));
     }
