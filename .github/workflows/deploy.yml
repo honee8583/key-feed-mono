@@ -7,6 +7,15 @@ on:
       - 'backend/**'
       - 'frontend/**'
   workflow_dispatch:
+    inputs:
+      deploy_backend:
+        description: '백엔드 배포'
+        type: boolean
+        default: true
+      deploy_frontend:
+        description: '프론트엔드 배포'
+        type: boolean
+        default: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -41,7 +50,9 @@ jobs:
   deploy-backend:
     name: Deploy Backend
     needs: detect-changes
-    if: needs.detect-changes.outputs.backend == 'true'
+    if: >
+      needs.detect-changes.outputs.backend == 'true' ||
+      (github.event_name == 'workflow_dispatch' && inputs.deploy_backend == true)
     runs-on: ubuntu-latest
 
     steps:
@@ -102,7 +113,9 @@ jobs:
   deploy-frontend:
     name: Deploy Frontend
     needs: detect-changes
-    if: needs.detect-changes.outputs.frontend == 'true'
+    if: >
+      needs.detect-changes.outputs.frontend == 'true' ||
+      (github.event_name == 'workflow_dispatch' && inputs.deploy_frontend == true)
     runs-on: ubuntu-latest
 
     steps:
