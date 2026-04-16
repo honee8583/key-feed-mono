@@ -1304,7 +1304,7 @@ POST /api/payment-methods/register
 
 ---
 
-### 8-2. 결제 수단 목록 조회
+### 8-3. 결제 수단 목록 조회
 
 ```
 GET /api/payment-methods
@@ -1341,7 +1341,7 @@ GET /api/payment-methods
 
 ---
 
-### 8-3. 결제 수단 삭제
+### 8-4. 결제 수단 삭제
 
 ```
 DELETE /api/payment-methods/{methodId}
@@ -1371,7 +1371,7 @@ DELETE /api/payment-methods/{methodId}
 
 ---
 
-### 8-4. 기본 결제 수단 변경
+### 8-5. 기본 결제 수단 변경
 
 ```
 PATCH /api/payment-methods/{methodId}/default

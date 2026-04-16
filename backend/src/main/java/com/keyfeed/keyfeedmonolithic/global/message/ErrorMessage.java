@@ -32,7 +32,8 @@ public enum ErrorMessage {
     EMAIL_ALREADY_VERIFIED("이미 인증된 이메일입니다."),
 
     // keyword
-    KEYWORD_LIMIT_EXCEEDED("키워드 등록 한도를 넘었습니다. 구독 시 무제한으로 이용하실 수 있습니다."),
+    KEYWORD_LIMIT_EXCEEDED("키워드 등록 한도를 넘었습니다. 구독 시 최대 10개까지 이용하실 수 있습니다."),
+    KEYWORD_SUBSCRIBER_LIMIT_EXCEEDED("키워드 등록 한도(10개)에 도달했습니다."),
 
     // crawl
     INVALID_RSS_URL("해당 URL에 접근할 수 없거나 유효한 웹사이트가 아닙니다."),
@@ -41,7 +42,8 @@ public enum ErrorMessage {
     RSS_PARSING_FAILED("RSS 피드를 파싱할 수 없습니다. URL을 확인해주세요."),
 
     // bookmark
-    BOOKMARK_FOLDER_LIMIT_EXCEEDED("북마크 폴더 생성 한도를 넘었습니다."),
+    BOOKMARK_FOLDER_LIMIT_EXCEEDED("북마크 폴더 생성 한도를 넘었습니다. 구독 시 최대 20개까지 이용하실 수 있습니다."),
+    BOOKMARK_FOLDER_SUBSCRIBER_LIMIT_EXCEEDED("북마크 폴더 생성 한도(20개)에 도달했습니다."),
 
     // payment
     INVALID_PAYMENT_METHOD("유효하지 않은 결제 수단입니다."),

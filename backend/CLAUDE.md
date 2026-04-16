@@ -120,7 +120,7 @@ public abstract class CustomException extends RuntimeException {
 
 ```yaml
 # application-local.yml 기준
-MySQL: localhost:3306/key_feed_identity (username: root, password: 1111)
+MySQL: localhost:3306/test (username: root, password: 1111)
 JWT 만료: 14일 (로컬은 길게 설정됨)
 SQL 로깅: P6Spy (p6spy: info 레벨)
 ```

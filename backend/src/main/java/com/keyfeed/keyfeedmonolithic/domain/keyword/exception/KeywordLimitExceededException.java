@@ -10,4 +10,8 @@ public class KeywordLimitExceededException extends CustomException {
         super(ErrorMessage.KEYWORD_LIMIT_EXCEEDED.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
+    public KeywordLimitExceededException(ErrorMessage errorMessage) {
+        super(errorMessage.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
 }
