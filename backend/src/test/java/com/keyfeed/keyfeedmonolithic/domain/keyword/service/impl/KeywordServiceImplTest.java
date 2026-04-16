@@ -82,7 +82,7 @@ class KeywordServiceImplTest {
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(keywordRepository.existsByNameAndUser(keywordName, user)).willReturn(false);
         given(subscriptionRepository.existsByUserIdAndStatusIn(userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED))).willReturn(false);
-        given(keywordRepository.countByUserId(userId)).willReturn(2L);
+        given(keywordRepository.countByUserIdAndIsEnabledTrue(userId)).willReturn(2L);
         given(keywordRepository.save(any(Keyword.class))).willReturn(keyword);
 
         // when
@@ -105,7 +105,7 @@ class KeywordServiceImplTest {
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(keywordRepository.existsByNameAndUser(keywordName, user)).willReturn(false);
         given(subscriptionRepository.existsByUserIdAndStatusIn(userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED))).willReturn(false);
-        given(keywordRepository.countByUserId(userId)).willReturn((long) KEYWORD_MAX_COUNT - 1);
+        given(keywordRepository.countByUserIdAndIsEnabledTrue(userId)).willReturn((long) KEYWORD_MAX_COUNT - 1);
         given(keywordRepository.save(any(Keyword.class))).willReturn(keyword);
 
         // when
@@ -126,7 +126,7 @@ class KeywordServiceImplTest {
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(keywordRepository.existsByNameAndUser(keywordName, user)).willReturn(false);
         given(subscriptionRepository.existsByUserIdAndStatusIn(userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED))).willReturn(false);
-        given(keywordRepository.countByUserId(userId)).willReturn((long) KEYWORD_MAX_COUNT);
+        given(keywordRepository.countByUserIdAndIsEnabledTrue(userId)).willReturn((long) KEYWORD_MAX_COUNT);
 
         // when & then
         assertThatThrownBy(() -> keywordService.addKeyword(userId, keywordName))
@@ -147,7 +147,7 @@ class KeywordServiceImplTest {
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(keywordRepository.existsByNameAndUser(keywordName, user)).willReturn(false);
         given(subscriptionRepository.existsByUserIdAndStatusIn(userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED))).willReturn(false);
-        given(keywordRepository.countByUserId(userId)).willReturn(5L);
+        given(keywordRepository.countByUserIdAndIsEnabledTrue(userId)).willReturn(5L);
 
         // when & then
         assertThatThrownBy(() -> keywordService.addKeyword(userId, keywordName))
@@ -170,7 +170,7 @@ class KeywordServiceImplTest {
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(keywordRepository.existsByNameAndUser(keywordName, user)).willReturn(false);
         given(subscriptionRepository.existsByUserIdAndStatusIn(userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED))).willReturn(true);
-        given(keywordRepository.countByUserId(userId)).willReturn(9L);
+        given(keywordRepository.countByUserIdAndIsEnabledTrue(userId)).willReturn(9L);
         given(keywordRepository.save(any(Keyword.class))).willReturn(keyword);
 
         // when
@@ -192,7 +192,7 @@ class KeywordServiceImplTest {
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(keywordRepository.existsByNameAndUser(keywordName, user)).willReturn(false);
         given(subscriptionRepository.existsByUserIdAndStatusIn(userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED))).willReturn(true);
-        given(keywordRepository.countByUserId(userId)).willReturn((long) KEYWORD_SUBSCRIBER_MAX_COUNT);
+        given(keywordRepository.countByUserIdAndIsEnabledTrue(userId)).willReturn((long) KEYWORD_SUBSCRIBER_MAX_COUNT);
 
         // when & then
         assertThatThrownBy(() -> keywordService.addKeyword(userId, keywordName))
@@ -214,7 +214,7 @@ class KeywordServiceImplTest {
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(keywordRepository.existsByNameAndUser(keywordName, user)).willReturn(false);
         given(subscriptionRepository.existsByUserIdAndStatusIn(userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED))).willReturn(true);
-        given(keywordRepository.countByUserId(userId)).willReturn((long) KEYWORD_SUBSCRIBER_MAX_COUNT - 1);
+        given(keywordRepository.countByUserIdAndIsEnabledTrue(userId)).willReturn((long) KEYWORD_SUBSCRIBER_MAX_COUNT - 1);
         given(keywordRepository.save(any(Keyword.class))).willReturn(keyword);
 
         // when
@@ -239,7 +239,7 @@ class KeywordServiceImplTest {
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(keywordRepository.existsByNameAndUser(keywordName, user)).willReturn(false);
         given(subscriptionRepository.existsByUserIdAndStatusIn(userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED))).willReturn(true);
-        given(keywordRepository.countByUserId(userId)).willReturn(5L);
+        given(keywordRepository.countByUserIdAndIsEnabledTrue(userId)).willReturn(5L);
         given(keywordRepository.save(any(Keyword.class))).willReturn(keyword);
 
         // when
@@ -261,7 +261,7 @@ class KeywordServiceImplTest {
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(keywordRepository.existsByNameAndUser(keywordName, user)).willReturn(false);
         given(subscriptionRepository.existsByUserIdAndStatusIn(userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED))).willReturn(true);
-        given(keywordRepository.countByUserId(userId)).willReturn(10L);
+        given(keywordRepository.countByUserIdAndIsEnabledTrue(userId)).willReturn(10L);
 
         // when & then
         assertThatThrownBy(() -> keywordService.addKeyword(userId, keywordName))
@@ -304,5 +304,84 @@ class KeywordServiceImplTest {
                 .isInstanceOf(EntityNotFoundException.class);
 
         then(keywordRepository).should(never()).save(any(Keyword.class));
+    }
+
+    // ── deactivateExcessKeywords ───────────────────────────────────────
+
+    @Test
+    @DisplayName("비활성화 - 5개 키워드 중 앞 3개 유지, 나머지 2개 비활성화")
+    void 초과_키워드_비활성화_성공() {
+        // given
+        Long userId = 11L;
+        User user = makeUser(userId);
+        List<Keyword> keywords = List.of(
+                makeKeyword(1L, user, "키워드1"),
+                makeKeyword(2L, user, "키워드2"),
+                makeKeyword(3L, user, "키워드3"),
+                makeKeyword(4L, user, "키워드4"),
+                makeKeyword(5L, user, "키워드5")
+        );
+
+        given(keywordRepository.findByUserIdOrderByCreatedAtAsc(userId)).willReturn(keywords);
+
+        // when
+        keywordService.deactivateExcessKeywords(userId, 3);
+
+        // then
+        assertThat(keywords.get(0).isEnabled()).isTrue();
+        assertThat(keywords.get(1).isEnabled()).isTrue();
+        assertThat(keywords.get(2).isEnabled()).isTrue();
+        assertThat(keywords.get(3).isEnabled()).isFalse();
+        assertThat(keywords.get(4).isEnabled()).isFalse();
+    }
+
+    @Test
+    @DisplayName("비활성화 - 키워드 수가 keepCount 미만이면 비활성화 없음")
+    void 키워드_수_한도_미만이면_비활성화_없음() {
+        // given
+        Long userId = 12L;
+        User user = makeUser(userId);
+        List<Keyword> keywords = List.of(
+                makeKeyword(1L, user, "키워드1"),
+                makeKeyword(2L, user, "키워드2")
+        );
+
+        given(keywordRepository.findByUserIdOrderByCreatedAtAsc(userId)).willReturn(keywords);
+
+        // when
+        keywordService.deactivateExcessKeywords(userId, 3);
+
+        // then
+        assertThat(keywords.get(0).isEnabled()).isTrue();
+        assertThat(keywords.get(1).isEnabled()).isTrue();
+    }
+
+    @Test
+    @DisplayName("비활성화 - 키워드가 없으면 아무것도 하지 않음")
+    void 키워드_없으면_비활성화_없음() {
+        // given
+        Long userId = 13L;
+
+        given(keywordRepository.findByUserIdOrderByCreatedAtAsc(userId)).willReturn(List.of());
+
+        // when
+        keywordService.deactivateExcessKeywords(userId, 3);
+
+        // then: 예외 없이 정상 종료
+    }
+
+    // ── reactivateAllKeywords ─────────────────────────────────────────
+
+    @Test
+    @DisplayName("재활성화 - enableAllByUserId 호출 검증")
+    void 비활성화된_키워드_전체_복원() {
+        // given
+        Long userId = 14L;
+
+        // when
+        keywordService.reactivateAllKeywords(userId);
+
+        // then
+        then(keywordRepository).should(times(1)).enableAllByUserId(userId);
     }
 }

@@ -2,6 +2,7 @@ package com.keyfeed.keyfeedmonolithic.domain.payment.service.impl;
 
 import com.keyfeed.keyfeedmonolithic.domain.auth.entity.User;
 import com.keyfeed.keyfeedmonolithic.domain.auth.repository.UserRepository;
+import com.keyfeed.keyfeedmonolithic.domain.keyword.service.KeywordService;
 import com.keyfeed.keyfeedmonolithic.domain.payment.dto.*;
 import com.keyfeed.keyfeedmonolithic.domain.payment.entity.*;
 import com.keyfeed.keyfeedmonolithic.domain.payment.exception.*;
@@ -53,6 +54,9 @@ class SubscriptionServiceImplTest {
 
     @Mock
     private SubscriptionWriter subscriptionWriter;
+
+    @Mock
+    private KeywordService keywordService;
 
     // ===== startSubscription =====
 
@@ -134,6 +138,32 @@ class SubscriptionServiceImplTest {
     }
 
     @Test
+    @DisplayName("구독 시작 성공 - reactivateAllKeywords 호출 검증")
+    void 구독_시작_성공_키워드_복원_호출() {
+        // given
+        Long userId = 1L;
+        Long methodId = 10L;
+        User user = makeUser(userId);
+        PaymentMethod paymentMethod = makePaymentMethod(methodId, user);
+        Subscription pendingSubscription = makeSubscription(user, paymentMethod, SubscriptionStatus.PENDING);
+        ChargeResult chargeResult = makeChargeResult(pendingSubscription);
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(subscriptionRepository.existsByUserIdAndStatusIn(eq(userId), anyList())).willReturn(false);
+        given(paymentMethodRepository.findByIdAndUserIdAndIsActiveTrue(methodId, userId)).willReturn(Optional.of(paymentMethod));
+        given(subscriptionWriter.savePending(user, paymentMethod)).willReturn(pendingSubscription);
+        given(billingExecutor.execute(eq(user), eq(paymentMethod), eq(pendingSubscription), anyString(), anyInt()))
+                .willReturn(chargeResult);
+        willDoNothing().given(subscriptionWriter).updateActive(pendingSubscription);
+
+        // when
+        subscriptionService.startSubscription(userId, makeStartRequest(methodId));
+
+        // then
+        then(keywordService).should(times(1)).reactivateAllKeywords(userId);
+    }
+
+    @Test
     @DisplayName("구독 시작 실패 - 결제 실패 시 구독이 CANCELED로 롤백된다")
     void 구독_시작_실패_결제실패_구독_CANCELED() {
         // given
@@ -156,6 +186,7 @@ class SubscriptionServiceImplTest {
 
         then(subscriptionWriter).should().updateCanceled(pendingSubscription);
         then(subscriptionWriter).should(never()).updateActive(any());
+        then(keywordService).should(never()).reactivateAllKeywords(any());
     }
 
     // ===== getMySubscription =====

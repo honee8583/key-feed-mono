@@ -22,12 +22,21 @@ public interface KeywordRepository extends JpaRepository<Keyword, Long> {
 
     Long countByUserId(Long userId);
 
+    Long countByUserIdAndIsEnabledTrue(Long userId);
+
+    List<Keyword> findByUserIdOrderByCreatedAtAsc(Long userId);
+
+    @Modifying
+    @Query("UPDATE Keyword k SET k.isEnabled = true WHERE k.user.id = :userId AND k.isEnabled = false")
+    void enableAllByUserId(@Param("userId") Long userId);
+
     @Query("SELECT DISTINCT k.user.id " +
             "FROM Keyword k " +
             "JOIN UserSource us ON k.user.id = us.user.id " +
             "WHERE k.name IN :keywords " +
             "AND us.source.id = :sourceId " +
-            "AND k.isNotificationEnabled = true")
+            "AND k.isNotificationEnabled = true " +
+            "AND k.isEnabled = true")
     List<Long> findUserIdsByNamesAndSourceId(@Param("keywords") Set<String> keywords, @Param("sourceId") Long sourceId);
 
     @Query(value = """
@@ -37,6 +46,7 @@ public interface KeywordRepository extends JpaRepository<Keyword, Long> {
     WHERE k.name IN :keywords
     AND us.source_id = :sourceId
     AND k.is_notification_enabled = 1
+    AND k.is_enabled = 1
     AND us.receive_feed = 1
     """, nativeQuery = true)
     List<Long> findUserIdsByNamesAndSourceId(
@@ -52,6 +62,7 @@ public interface KeywordRepository extends JpaRepository<Keyword, Long> {
     WHERE k.name IN :keywords
     AND us.source_id = :sourceId
     AND k.is_notification_enabled = 1
+    AND k.is_enabled = 1
     AND us.receive_feed = 1
     AND k.user_id > :lastUserId
     ORDER BY k.user_id ASC

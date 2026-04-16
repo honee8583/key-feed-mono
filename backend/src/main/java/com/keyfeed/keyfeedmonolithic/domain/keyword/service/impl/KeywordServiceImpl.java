@@ -68,7 +68,7 @@ public class KeywordServiceImpl implements KeywordService {
             errorMessage = ErrorMessage.KEYWORD_LIMIT_EXCEEDED;
         }
 
-        if (keywordRepository.countByUserId(userId) >= limit) {
+        if (keywordRepository.countByUserIdAndIsEnabledTrue(userId) >= limit) {
             throw new KeywordLimitExceededException(errorMessage);
         }
 
@@ -118,6 +118,21 @@ public class KeywordServiceImpl implements KeywordService {
                 .stream()
                 .map(projection -> new TrendingKeywordResponseDto(projection.getName(), projection.getUserCount()))
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public void deactivateExcessKeywords(Long userId, int keepCount) {
+        List<Keyword> keywords = keywordRepository.findByUserIdOrderByCreatedAtAsc(userId);
+        for (int i = keepCount; i < keywords.size(); i++) {
+            keywords.get(i).disable();
+        }
+    }
+
+    @Override
+    @Transactional
+    public void reactivateAllKeywords(Long userId) {
+        keywordRepository.enableAllByUserId(userId);
     }
 
     private boolean hasKeywordBenefit(Long userId) {

@@ -2,6 +2,7 @@ package com.keyfeed.keyfeedmonolithic.domain.payment.service.impl;
 
 import com.keyfeed.keyfeedmonolithic.domain.auth.entity.User;
 import com.keyfeed.keyfeedmonolithic.domain.auth.repository.UserRepository;
+import com.keyfeed.keyfeedmonolithic.domain.keyword.service.KeywordService;
 import com.keyfeed.keyfeedmonolithic.domain.payment.dto.*;
 import com.keyfeed.keyfeedmonolithic.domain.payment.entity.*;
 import com.keyfeed.keyfeedmonolithic.domain.payment.exception.*;
@@ -35,6 +36,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private final TossPaymentsClient tossPaymentsClient;
     private final BillingExecutor billingExecutor;
     private final SubscriptionWriter subscriptionWriter;
+    private final KeywordService keywordService;
 
     @Override
     public SubscriptionStartResponseDto startSubscription(Long userId, SubscriptionStartRequestDto request) {
@@ -70,6 +72,9 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
         // 6. Subscription ACTIVE 업데이트 (즉시 커밋)
         subscriptionWriter.updateActive(subscription);
+
+        // 7. 과거 구독 만료로 비활성화된 키워드 복원
+        keywordService.reactivateAllKeywords(userId);
 
         return SubscriptionStartResponseDto.from(subscription, result.history());
     }

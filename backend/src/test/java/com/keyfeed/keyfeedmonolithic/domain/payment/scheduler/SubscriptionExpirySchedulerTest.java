@@ -1,15 +1,18 @@
 package com.keyfeed.keyfeedmonolithic.domain.payment.scheduler;
 
 import com.keyfeed.keyfeedmonolithic.domain.auth.entity.User;
+import com.keyfeed.keyfeedmonolithic.domain.keyword.service.KeywordService;
 import com.keyfeed.keyfeedmonolithic.domain.payment.entity.Subscription;
 import com.keyfeed.keyfeedmonolithic.domain.payment.entity.SubscriptionStatus;
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.SubscriptionRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,6 +29,16 @@ class SubscriptionExpirySchedulerTest {
 
     @Mock
     private SubscriptionRepository subscriptionRepository;
+
+    @Mock
+    private KeywordService keywordService;
+
+    private static final int KEYWORD_MAX_COUNT = 3;
+
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(subscriptionExpiryScheduler, "keywordMaxCount", KEYWORD_MAX_COUNT);
+    }
 
     // ===== expireSubscriptions =====
 
@@ -93,6 +106,39 @@ class SubscriptionExpirySchedulerTest {
 
         // then - CANCELED 상태 그대로 유지
         assertThat(futureSub.getStatus()).isEqualTo(SubscriptionStatus.CANCELED);
+    }
+
+    @Test
+    @DisplayName("만료 구독 2건 - deactivateExcessKeywords 2회 호출")
+    void 만료_구독_2건_키워드_비활성화_2회_호출() {
+        // given
+        Subscription sub1 = makeCanceledSubscription(1L, LocalDateTime.now().minusDays(1));
+        Subscription sub2 = makeCanceledSubscription(2L, LocalDateTime.now().minusDays(2));
+        given(subscriptionRepository.findByStatusAndExpiredAtLessThanEqual(
+                eq(SubscriptionStatus.CANCELED), any(LocalDateTime.class)))
+                .willReturn(List.of(sub1, sub2));
+
+        // when
+        subscriptionExpiryScheduler.expireSubscriptions();
+
+        // then
+        then(keywordService).should(times(1)).deactivateExcessKeywords(1L, KEYWORD_MAX_COUNT);
+        then(keywordService).should(times(1)).deactivateExcessKeywords(2L, KEYWORD_MAX_COUNT);
+    }
+
+    @Test
+    @DisplayName("만료 구독 0건 - deactivateExcessKeywords 미호출")
+    void 만료_구독_없으면_키워드_비활성화_미호출() {
+        // given
+        given(subscriptionRepository.findByStatusAndExpiredAtLessThanEqual(
+                eq(SubscriptionStatus.CANCELED), any(LocalDateTime.class)))
+                .willReturn(List.of());
+
+        // when
+        subscriptionExpiryScheduler.expireSubscriptions();
+
+        // then
+        then(keywordService).should(never()).deactivateExcessKeywords(any(), anyInt());
     }
 
     // ===== helpers =====
