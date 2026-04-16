@@ -45,7 +45,7 @@ jobs:
               - 'frontend/**'
 
   # ─────────────────────────────────────────────
-  # 백엔드 빌드 & 배포
+  # 백엔드 빌드 & Blue-Green 배포
   # ─────────────────────────────────────────────
   deploy-backend:
     name: Deploy Backend
@@ -80,32 +80,119 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy backend on EC2
+      - name: Blue-Green Deploy backend on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            docker network create keyfeed-network || true
+            IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/keyfeed-backend"
+            NETWORK="keyfeed-network"
+            NGINX_CONF=$HOME/app/nginx/conf.d/service-url.inc
 
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/keyfeed-backend:latest
+            docker network create $NETWORK || true
 
-            docker stop keyfeed-backend || true
-            docker rm keyfeed-backend || true
+            # ── 디렉토리 및 파일 자동 생성 ─────────────────
+            mkdir -p $HOME/app/nginx/conf.d
+            [ -f "$NGINX_CONF" ] || echo 'set $service_url http://app-blue:8080;' > $NGINX_CONF
 
+            # ── Nginx 컨테이너 없으면 자동 실행 ────────────
+            if ! docker ps --format '{{.Names}}' | grep -q "^keyfeed-frontend$"; then
+              echo "⚠️ Nginx 컨테이너 없음 - 자동 실행"
+              docker run -d \
+                --name keyfeed-frontend \
+                --network $NETWORK \
+                --restart unless-stopped \
+                -p 80:80 \
+                -v $NGINX_CONF:/etc/nginx/conf.d/service-url.inc \
+                ${{ secrets.DOCKERHUB_USERNAME }}/keyfeed-frontend:latest
+            fi
+
+            # ── 현재 active 컨테이너 확인 ──────────────────
+            if [ -f "$NGINX_CONF" ] && grep -q "app-blue" "$NGINX_CONF"; then
+              CURRENT="blue"
+              NEXT="green"
+            else
+              CURRENT="green"
+              NEXT="blue"
+            fi
+
+            if [ "$NEXT" = "blue" ]; then
+              NEXT_PORT=8080
+            else
+              NEXT_PORT=8081
+            fi
+
+            echo "▶ 현재: $CURRENT → 배포 대상: $NEXT (포트: $NEXT_PORT)"
+
+            # ── 새 이미지 pull ──────────────────────────────
+            docker pull $IMAGE:latest
+
+            # ── 기존 NEXT 컨테이너 정리 ────────────────────
+            docker stop app-$NEXT 2>/dev/null || true
+            docker rm app-$NEXT 2>/dev/null || true
+
+            # ── 새 컨테이너 실행 ────────────────────────────
             docker run -d \
-              --name keyfeed-backend \
-              --network keyfeed-network \
+              --name app-$NEXT \
+              --network $NETWORK \
               --restart unless-stopped \
-              -p 8080:8080 \
+              -p $NEXT_PORT:8080 \
               -v /home/ubuntu/logs:/app/logs \
               -e JASYPT_ENCRYPTOR_PASSWORD=${{ secrets.JASYPT_ENCRYPTOR_PASSWORD }} \
               -e jwt_key=${{ secrets.JWT_KEY }} \
               -e CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }} \
-              ${{ secrets.DOCKERHUB_USERNAME }}/keyfeed-backend:latest
+              $IMAGE:latest
+
+            # ── 헬스체크 (최대 60초) ────────────────────────
+            echo "⏳ 헬스체크 중..."
+            HEALTH="000"
+            for i in $(seq 1 12); do
+              sleep 5
+              HEALTH=$(curl -s -o /dev/null -w "%{http_code}" \
+                http://localhost:$NEXT_PORT/actuator/health)
+              echo "  시도 $i/12 → HTTP $HEALTH"
+              if [ "$HEALTH" = "200" ]; then
+                break
+              fi
+            done
+
+            # ── 헬스체크 실패 시 롤백 ───────────────────────
+            if [ "$HEALTH" != "200" ]; then
+              echo "❌ 헬스체크 실패 - 배포 중단 및 롤백"
+              docker stop app-$NEXT || true
+              docker rm app-$NEXT || true
+              exit 1
+            fi
+
+            echo "✅ 헬스체크 통과"
+
+            # ── Nginx upstream 전환 ─────────────────────────
+            PREVIOUS_CONF="set \$service_url http://app-$CURRENT:8080;"
+
+            echo "set \$service_url http://app-$NEXT:8080;" > $NGINX_CONF
+            sleep 2
+
+            docker exec keyfeed-frontend nginx -s reload || {
+              echo "❌ Nginx reload 실패 - 롤백 중"
+              echo "$PREVIOUS_CONF" > $NGINX_CONF
+              docker stop app-$NEXT || true
+              docker rm app-$NEXT || true
+              exit 1
+            }
+
+            sleep 2
+            echo "🔀 트래픽 전환: $CURRENT → $NEXT"
+
+            # ── 이전 컨테이너 종료 ─────────────────────────
+            sleep 10
+            docker stop --time 30 app-$CURRENT || true
+            docker rm app-$CURRENT || true
+            echo "🛑 $CURRENT 컨테이너 종료"
 
             docker image prune -f
+            echo "🎉 백엔드 배포 완료"
 
   # ─────────────────────────────────────────────
   # 프론트엔드 빌드 & 배포
@@ -150,7 +237,14 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            docker network create keyfeed-network || true
+            NETWORK="keyfeed-network"
+            NGINX_CONF=$HOME/app/nginx/conf.d/service-url.inc
+
+            docker network create $NETWORK || true
+
+            # ── 디렉토리 및 파일 자동 생성 ─────────────────
+            mkdir -p $HOME/app/nginx/conf.d
+            [ -f "$NGINX_CONF" ] || echo 'set $service_url http://app-blue:8080;' > $NGINX_CONF
 
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/keyfeed-frontend:latest
 
@@ -159,9 +253,11 @@ jobs:
 
             docker run -d \
               --name keyfeed-frontend \
-              --network keyfeed-network \
+              --network $NETWORK \
               --restart unless-stopped \
               -p 80:80 \
+              -v $NGINX_CONF:/etc/nginx/conf.d/service-url.inc \
               ${{ secrets.DOCKERHUB_USERNAME }}/keyfeed-frontend:latest
 
             docker image prune -f
+            echo "🎉 프론트엔드 배포 완료"
