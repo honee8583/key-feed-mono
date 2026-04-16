@@ -15,6 +15,8 @@ import com.keyfeed.keyfeedmonolithic.domain.bookmark.repository.BookmarkReposito
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.service.BookmarkService;
 import com.keyfeed.keyfeedmonolithic.domain.content.dto.ContentFeedResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.content.repository.ContentRepository;
+import com.keyfeed.keyfeedmonolithic.domain.payment.entity.SubscriptionStatus;
+import com.keyfeed.keyfeedmonolithic.domain.payment.repository.SubscriptionRepository;
 import com.keyfeed.keyfeedmonolithic.global.error.exception.EntityAlreadyExistsException;
 import com.keyfeed.keyfeedmonolithic.global.error.exception.EntityNotFoundException;
 import com.keyfeed.keyfeedmonolithic.global.response.CursorPage;
@@ -40,9 +42,13 @@ public class BookmarkServiceImpl implements BookmarkService {
     private final BookmarkFolderRepository folderRepository;
     private final UserRepository userRepository;
     private final ContentRepository contentRepository;
+    private final SubscriptionRepository subscriptionRepository;
 
     @Value("${app.limits.folder-max-count}")
     private int folderMaxCount;
+
+    @Value("${app.limits.folder-subscriber-max-count}")
+    private int folderSubscriberMaxCount;
 
     /**
      * 폴더 생성
@@ -211,9 +217,16 @@ public class BookmarkServiceImpl implements BookmarkService {
 
     // 북마크 폴더 최대 개수를 넘지 않는지 검증
     private void validateFolderCountLimit(Long userId) {
-        if (folderRepository.countByUserId(userId) >= folderMaxCount) {
+        int limit = hasFolderBenefit(userId) ? folderSubscriberMaxCount : folderMaxCount;
+        if (folderRepository.countByUserId(userId) >= limit) {
             throw new FolderLimitExceededException();
         }
+    }
+
+    // 구독 혜택(폴더 한도 확대) 보유 여부 확인
+    private boolean hasFolderBenefit(Long userId) {
+        return subscriptionRepository.existsByUserIdAndStatusIn(
+                userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED));
     }
 
     // 북마크가 이미 존재하는지 검증
