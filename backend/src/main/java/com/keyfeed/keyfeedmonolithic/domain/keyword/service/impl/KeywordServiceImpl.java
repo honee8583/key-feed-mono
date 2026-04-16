@@ -12,6 +12,7 @@ import com.keyfeed.keyfeedmonolithic.domain.payment.entity.SubscriptionStatus;
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.SubscriptionRepository;
 import com.keyfeed.keyfeedmonolithic.global.error.exception.EntityAlreadyExistsException;
 import com.keyfeed.keyfeedmonolithic.global.error.exception.EntityNotFoundException;
+import com.keyfeed.keyfeedmonolithic.global.message.ErrorMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -58,14 +59,17 @@ public class KeywordServiceImpl implements KeywordService {
         }
 
         int limit;
+        ErrorMessage errorMessage;
         if (hasKeywordBenefit(userId)) {
             limit = keywordSubscriberMaxCount;
+            errorMessage = ErrorMessage.KEYWORD_SUBSCRIBER_LIMIT_EXCEEDED;
         } else {
             limit = keywordMaxCount;
+            errorMessage = ErrorMessage.KEYWORD_LIMIT_EXCEEDED;
         }
 
         if (keywordRepository.countByUserId(userId) >= limit) {
-            throw new KeywordLimitExceededException();
+            throw new KeywordLimitExceededException(errorMessage);
         }
 
         Keyword keyword = Keyword.builder()

@@ -11,6 +11,7 @@ import com.keyfeed.keyfeedmonolithic.domain.bookmark.entity.BookmarkFolder;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.exception.FolderAccessDeniedException;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.exception.FolderLimitExceededException;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.repository.BookmarkFolderRepository;
+import com.keyfeed.keyfeedmonolithic.global.message.ErrorMessage;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.repository.BookmarkRepository;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.service.BookmarkService;
 import com.keyfeed.keyfeedmonolithic.domain.content.dto.ContentFeedResponseDto;
@@ -218,14 +219,17 @@ public class BookmarkServiceImpl implements BookmarkService {
     // 북마크 폴더 최대 개수를 넘지 않는지 검증
     private void validateFolderCountLimit(Long userId) {
         int limit;
+        ErrorMessage errorMessage;
         if (hasFolderBenefit(userId)) {
             limit = folderSubscriberMaxCount;
+            errorMessage = ErrorMessage.BOOKMARK_FOLDER_SUBSCRIBER_LIMIT_EXCEEDED;
         } else {
             limit = folderMaxCount;
+            errorMessage = ErrorMessage.BOOKMARK_FOLDER_LIMIT_EXCEEDED;
         }
 
         if (folderRepository.countByUserId(userId) >= limit) {
-            throw new FolderLimitExceededException();
+            throw new FolderLimitExceededException(errorMessage);
         }
     }
 

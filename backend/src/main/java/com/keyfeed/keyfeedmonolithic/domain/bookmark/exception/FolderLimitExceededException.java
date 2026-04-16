@@ -8,4 +8,8 @@ public class FolderLimitExceededException extends CustomException {
     public FolderLimitExceededException() {
         super(ErrorMessage.BOOKMARK_FOLDER_LIMIT_EXCEEDED.getMessage(), HttpStatus.BAD_REQUEST);
     }
+
+    public FolderLimitExceededException(ErrorMessage errorMessage) {
+        super(errorMessage.getMessage(), HttpStatus.BAD_REQUEST);
+    }
 }
