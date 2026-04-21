@@ -11,10 +11,8 @@ const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY || "test_ck_D5GePWvyJnrK0
 
 const FEATURES = [
     { icon: Bookmark, title: '무제한 북마크', desc: '원하는 만큼 저장하고 관리하세요' },
-    { icon: Folder, title: '무제한 폴더', desc: '폴더를 자유롭게 생성하세요' },
-    { icon: Tag, title: '무제한 키워드', desc: '관심 있는 키워드를 제한 없이 추가하세요' },
-    { icon: Star, title: '프리미엄 테마', desc: '독점 테마와 아이콘 팩 제공' },
-    { icon: Zap, title: 'AI 추천 엔진', desc: '개인화된 콘텐츠 큐레이션' }
+    { icon: Folder, title: '북마크 폴더 20개', desc: '북마크 폴더를 최대 20개까지 생성할 수 있어요' },
+    { icon: Tag, title: '관심 키워드 10개', desc: '관심 키워드를 최대 10개까지 추가할 수 있어요' }
 ];
 
 export function UpgradePlanOverlay() {
@@ -141,11 +139,6 @@ export function UpgradePlanOverlay() {
                         </div>
                         <p className="text-[10px] font-medium text-slate-400 opacity-80 mb-6">언제든지 취소 가능합니다</p>
                         <div className="flex items-center justify-center gap-4 text-[10px] font-bold text-slate-300">
-                            <div className="flex items-center gap-1.5">
-                                <CheckCircle2 size={12} className="text-emerald-400" />
-                                <span>7일 무료 체험</span>
-                            </div>
-                            <div className="w-1 h-1 rounded-full bg-slate-600"></div>
                             <div className="flex items-center gap-1.5">
                                 <CheckCircle2 size={12} className="text-emerald-400" />
                                 <span>자동 갱신</span>
