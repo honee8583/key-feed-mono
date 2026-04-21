@@ -27,6 +27,19 @@
 }
 ```
 
+### 오프셋 페이지네이션 응답 (`data` 필드)
+
+```json
+{
+  "content": [ ],
+  "page": 0,
+  "size": 10,
+  "totalElements": 100,
+  "totalPages": 10,
+  "hasNext": true
+}
+```
+
 ### 에러 응답
 
 ```json
@@ -97,7 +110,7 @@ POST /api/auth/join
 ```json
 {
   "status": 201,
-  "message": "작성되었습니다.",
+  "message": "저장에 성공하였습니다.",
   "data": null
 }
 ```
@@ -177,7 +190,7 @@ POST /api/auth/refresh
 ```json
 {
   "status": 200,
-  "message": "토큰이 발급되었습니다.",
+  "message": "토큰발급에 성공했습니다.",
   "data": "<new_jwt_access_token>"
 }
 ```
@@ -207,7 +220,7 @@ POST /api/auth/email-verification/request
 ```json
 {
   "status": 201,
-  "message": "이메일이 성공적으로 전송되었습니다.",
+  "message": "이메일 전송에 성공하였습니다.",
   "data": null
 }
 ```
@@ -281,7 +294,7 @@ POST /api/auth/password-reset/request
 ```json
 {
   "status": 201,
-  "message": "비밀번호 재설정 이메일이 발송되었습니다.",
+  "message": "비밀번호 재설정을 위한 인증 이메일이 발송되었습니다.",
   "data": null
 }
 ```
@@ -392,7 +405,7 @@ PATCH /api/users/password
 ```json
 {
   "status": 200,
-  "message": "비밀번호가 변경되었습니다.",
+  "message": "비밀번호가 성공적으로 변경되었습니다.",
   "data": null
 }
 ```
@@ -462,7 +475,7 @@ POST /api/bookmarks/folders
 ```json
 {
   "status": 201,
-  "message": "작성되었습니다.",
+  "message": "저장에 성공하였습니다.",
   "data": 1
 }
 ```
@@ -504,7 +517,7 @@ PATCH /api/bookmarks/folders/{folderId}
 ```json
 {
   "status": 200,
-  "message": "수정되었습니다.",
+  "message": "수정에 성공하였습니다.",
   "data": null
 }
 ```
@@ -528,7 +541,7 @@ DELETE /api/bookmarks/folders/{folderId}
 ```json
 {
   "status": 200,
-  "message": "삭제되었습니다.",
+  "message": "삭제에 성공하였습니다.",
   "data": null
 }
 ```
@@ -546,7 +559,7 @@ GET /api/bookmarks/folders
 ```json
 {
   "status": 200,
-  "message": "조회되었습니다.",
+  "message": "조회에 성공하였습니다.",
   "data": [
     {
       "folderId": 1,
@@ -585,7 +598,7 @@ POST /api/bookmarks
 ```json
 {
   "status": 201,
-  "message": "작성되었습니다.",
+  "message": "저장에 성공하였습니다.",
   "data": 42
 }
 ```
@@ -613,7 +626,7 @@ GET /api/bookmarks
 ```json
 {
   "status": 200,
-  "message": "조회되었습니다.",
+  "message": "조회에 성공하였습니다.",
   "data": {
     "content": [
       {
@@ -670,7 +683,7 @@ PATCH /api/bookmarks/{bookmarkId}/folder
 ```json
 {
   "status": 200,
-  "message": "수정되었습니다.",
+  "message": "수정에 성공하였습니다.",
   "data": null
 }
 ```
@@ -694,7 +707,7 @@ DELETE /api/bookmarks/{bookmarkId}/folder
 ```json
 {
   "status": 200,
-  "message": "수정되었습니다.",
+  "message": "수정에 성공하였습니다.",
   "data": null
 }
 ```
@@ -718,7 +731,7 @@ DELETE /api/bookmarks/{bookmarkId}
 ```json
 {
   "status": 200,
-  "message": "삭제되었습니다.",
+  "message": "삭제에 성공하였습니다.",
   "data": null
 }
 ```
@@ -742,7 +755,7 @@ GET /api/keywords
 ```json
 {
   "status": 200,
-  "message": "조회되었습니다.",
+  "message": "조회에 성공하였습니다.",
   "data": [
     {
       "keywordId": 1,
@@ -774,7 +787,7 @@ GET /api/keywords/trending
 ```json
 {
   "status": 200,
-  "message": "조회되었습니다.",
+  "message": "조회에 성공하였습니다.",
   "data": [
     {
       "name": "AI",
@@ -813,7 +826,7 @@ POST /api/keywords
 ```json
 {
   "status": 201,
-  "message": "작성되었습니다.",
+  "message": "저장에 성공하였습니다.",
   "data": {
     "keywordId": 5,
     "name": "Kubernetes",
@@ -841,7 +854,7 @@ PATCH /api/keywords/{keywordId}/toggle
 ```json
 {
   "status": 200,
-  "message": "수정되었습니다.",
+  "message": "수정에 성공하였습니다.",
   "data": {
     "keywordId": 5,
     "name": "Kubernetes",
@@ -869,7 +882,7 @@ DELETE /api/keywords/{keywordId}
 ```json
 {
   "status": 200,
-  "message": "삭제되었습니다.",
+  "message": "삭제에 성공하였습니다.",
   "data": null
 }
 ```
@@ -893,7 +906,7 @@ GET /api/sources/my
 ```json
 {
   "status": 200,
-  "message": "조회되었습니다.",
+  "message": "조회에 성공하였습니다.",
   "data": [
     {
       "sourceId": 10,
@@ -926,7 +939,7 @@ GET /api/sources/my/search
 ```json
 {
   "status": 200,
-  "message": "조회되었습니다.",
+  "message": "조회에 성공하였습니다.",
   "data": [
     {
       "sourceId": 10,
@@ -969,7 +982,7 @@ POST /api/sources
 ```json
 {
   "status": 200,
-  "message": "작성되었습니다.",
+  "message": "저장에 성공하였습니다.",
   "data": {
     "sourceId": 10,
     "userSourceId": 3,
@@ -1000,7 +1013,7 @@ DELETE /api/sources/my/{userSourceId}
 ```json
 {
   "status": 200,
-  "message": "삭제되었습니다.",
+  "message": "삭제에 성공하였습니다.",
   "data": null
 }
 ```
@@ -1024,7 +1037,7 @@ PATCH /api/sources/my/{userSourceId}/receive-feed
 ```json
 {
   "status": 200,
-  "message": "수정되었습니다.",
+  "message": "수정에 성공하였습니다.",
   "data": {
     "sourceId": 10,
     "userSourceId": 3,
@@ -1056,7 +1069,7 @@ GET /api/sources/recommended
 ```json
 {
   "status": 200,
-  "message": "조회되었습니다.",
+  "message": "조회에 성공하였습니다.",
   "data": [
     {
       "sourceId": 10,
@@ -1071,25 +1084,32 @@ GET /api/sources/recommended
 
 ## 6. 피드 (Feed)
 
-### GET /api/feed — 개인화 피드 조회
+> Base Path: `/api/feed` — **인증 필요** (`Authorization: Bearer <token>`)
+
+---
+
+### 6-1. 개인화 피드 조회 (커서 기반)
+
+```
+GET /api/feed
+```
 
 구독 중인 소스의 최신 콘텐츠를 커서 기반 페이지네이션으로 반환합니다.
 
-- **인증**: 필요 (Bearer Token)
-- **Query Parameters**:
+**Query Parameters**
 
-| 파라미터 | 타입 | 필수 | 설명 |
-|---------|------|------|------|
-| `lastId` | Long | X | 이전 페이지 마지막 항목의 `publishedAt` epoch millis (커서) |
-| `size` | Integer | X | 페이지 크기 (기본값: 10) |
-| `keyword` | String | X | 키워드 필터링 |
+| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
+|---------|------|------|--------|------|
+| `lastId` | Long | X | - | 이전 페이지 마지막 항목의 `publishedAt` epoch millis (커서) |
+| `size` | Integer | X | 10 | 페이지 크기 |
+| `keyword` | String | X | - | 키워드 필터링 |
 
-- **응답**:
+**Response** `200 OK`
 
 ```json
 {
   "status": 200,
-  "message": "조회되었습니다.",
+  "message": "조회에 성공하였습니다.",
   "data": {
     "content": [
       {
@@ -1111,6 +1131,50 @@ GET /api/sources/recommended
 
 > `nextCursorId`는 마지막 항목의 `publishedAt`을 epoch milliseconds로 변환한 값입니다. 다음 요청 시 `lastId`에 전달합니다.
 > `bookmarkId`는 해당 콘텐츠를 북마크한 경우 북마크 ID, 북마크하지 않은 경우 `null`입니다.
+
+---
+
+### 6-2. 개인화 피드 조회 (오프셋 기반)
+
+```
+GET /api/feed/offset
+```
+
+**Query Parameters**
+
+| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
+|---------|------|------|--------|------|
+| `page` | int | X | 0 | 페이지 번호 (0부터 시작) |
+| `size` | Integer | X | 10 | 페이지 크기 |
+| `keyword` | String | X | - | 키워드 필터링 |
+
+**Response** `200 OK`
+
+```json
+{
+  "status": 200,
+  "message": "조회에 성공하였습니다.",
+  "data": {
+    "content": [
+      {
+        "contentId": "123",
+        "title": "Spring Boot 3.5 Released",
+        "summary": "Spring Boot 3.5 brings...",
+        "sourceName": "Spring Blog",
+        "originalUrl": "https://spring.io/blog/2025/...",
+        "thumbnailUrl": "https://example.com/thumb.jpg",
+        "publishedAt": "2025-03-01T12:00:00",
+        "bookmarkId": 42
+      }
+    ],
+    "page": 0,
+    "size": 10,
+    "totalElements": 100,
+    "totalPages": 10,
+    "hasNext": true
+  }
+}
+```
 
 ---
 
@@ -1207,6 +1271,395 @@ GET /api/notifications
 
 ---
 
+## 8. 결제 수단 (Payment Methods)
+
+> Base Path: `/api/payment-methods` — **인증 필요** (`Authorization: Bearer <token>`)
+
+---
+
+### 8-1. 고객 키 발급
+
+```
+GET /api/payment-methods/customer-key
+```
+
+토스 SDK 호출 전 프론트엔드에서 요청합니다.
+
+**Response** `200 OK`
+
+```json
+{
+  "status": 200,
+  "message": "고객 키가 발급되었습니다.",
+  "data": "<customer_key>"
+}
+```
+
+---
+
+### 8-2. 결제 수단 등록
+
+```
+POST /api/payment-methods/register
+```
+
+**Request Body**
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| `authKey` | String | O | 토스 SDK에서 발급받은 인증 키 |
+
+```json
+{
+  "authKey": "auth_key_from_toss_sdk"
+}
+```
+
+**Response** `200 OK`
+
+```json
+{
+  "status": 200,
+  "message": "결제 수단이 등록되었습니다.",
+  "data": {
+    "methodId": 1,
+    "methodType": "CARD",
+    "providerName": "신한카드",
+    "displayNumber": "1234",
+    "isDefault": true,
+    "createdAt": "2026-03-01T12:00:00"
+  }
+}
+```
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `methodId` | Long | 결제 수단 ID |
+| `methodType` | String | 결제 수단 유형 (`CARD` 등) |
+| `providerName` | String | 카드사/제공사 이름 |
+| `displayNumber` | String | 카드 번호 뒷자리 |
+| `isDefault` | Boolean | 기본 결제 수단 여부 |
+| `createdAt` | String | 등록 일시 |
+
+---
+
+### 8-3. 결제 수단 목록 조회
+
+```
+GET /api/payment-methods
+```
+
+**Response** `200 OK`
+
+```json
+{
+  "status": 200,
+  "message": "결제 수단 목록 조회에 성공했습니다.",
+  "data": [
+    {
+      "methodId": 1,
+      "methodType": "CARD",
+      "providerName": "신한카드",
+      "displayNumber": "1234",
+      "isDefault": true,
+      "createdAt": "2026-03-01T12:00:00"
+    }
+  ]
+}
+```
+
+---
+
+### 8-4. 결제 수단 삭제
+
+```
+DELETE /api/payment-methods/{methodId}
+```
+
+**Path Variable**
+
+| 파라미터 | 타입 | 설명 |
+|---------|------|------|
+| `methodId` | Long | 삭제할 결제 수단 ID |
+
+**Response** `204 No Content`
+
+---
+
+### 8-5. 기본 결제 수단 변경
+
+```
+PATCH /api/payment-methods/{methodId}/default
+```
+
+**Path Variable**
+
+| 파라미터 | 타입 | 설명 |
+|---------|------|------|
+| `methodId` | Long | 기본으로 설정할 결제 수단 ID |
+
+**Response** `200 OK`
+
+```json
+{
+  "status": 200,
+  "message": "기본 결제 수단이 변경되었습니다.",
+  "data": null
+}
+```
+
+---
+
+## 9. 구독 (Subscriptions)
+
+> Base Path: `/api/subscriptions` — **인증 필요** (`Authorization: Bearer <token>`)
+
+---
+
+### 9-1. 구독 시작
+
+```
+POST /api/subscriptions/start
+```
+
+**Request Body**
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| `methodId` | Long | O | 결제에 사용할 결제 수단 ID |
+
+```json
+{
+  "methodId": 1
+}
+```
+
+**Response** `200 OK`
+
+```json
+{
+  "status": 200,
+  "message": "구독이 시작되었습니다.",
+  "data": {
+    "subscriptionId": 10,
+    "status": "ACTIVE",
+    "price": 9900,
+    "nextBillingAt": "2026-05-01T00:00:00",
+    "expiredAt": null
+  }
+}
+```
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `subscriptionId` | Long | 구독 ID |
+| `status` | String | 구독 상태 (`ACTIVE` \| `CANCELED` \| `EXPIRED` 등) |
+| `price` | int | 구독 금액 |
+| `nextBillingAt` | String | 다음 결제 예정일 |
+| `expiredAt` | String | 구독 만료일 (해지 예약 시 존재) |
+
+---
+
+### 9-2. 내 구독 조회
+
+```
+GET /api/subscriptions/me
+```
+
+**Response** `200 OK`
+
+```json
+{
+  "status": 200,
+  "message": "구독 상태 조회에 성공했습니다.",
+  "data": {
+    "subscriptionId": 10,
+    "status": "ACTIVE",
+    "price": 9900,
+    "startedAt": "2026-04-01T00:00:00",
+    "nextBillingAt": "2026-05-01T00:00:00",
+    "expiredAt": null,
+    "canceledAt": null,
+    "retryCount": 0,
+    "providerName": "신한카드",
+    "displayNumber": "1234"
+  }
+}
+```
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `subscriptionId` | Long | 구독 ID |
+| `status` | String | 구독 상태 |
+| `price` | Integer | 구독 금액 |
+| `startedAt` | String | 구독 시작일 |
+| `nextBillingAt` | String | 다음 결제 예정일 |
+| `expiredAt` | String | 구독 만료일 |
+| `canceledAt` | String | 해지 신청일 |
+| `retryCount` | Integer | 결제 재시도 횟수 |
+| `providerName` | String | 결제 수단 카드사 |
+| `displayNumber` | String | 결제 수단 카드 번호 뒷자리 |
+
+> 구독이 없는 경우 `data.status`가 `"NONE"`으로 반환됩니다.
+
+---
+
+### 9-3. 구독 해지 (만료일까지 서비스 유지)
+
+```
+POST /api/subscriptions/cancel
+```
+
+**Response** `200 OK`
+
+```json
+{
+  "status": 200,
+  "message": "구독이 해지되었습니다.",
+  "data": {
+    "status": "CANCEL_RESERVED",
+    "expiredAt": "2026-05-01T00:00:00",
+    "canceledAt": "2026-04-21T10:00:00"
+  }
+}
+```
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `status` | String | 변경된 구독 상태 |
+| `expiredAt` | String | 서비스 이용 가능 마지막 일시 |
+| `canceledAt` | String | 해지 신청 일시 |
+
+---
+
+### 9-4. 구독 재개
+
+```
+POST /api/subscriptions/resume
+```
+
+**Request Body**
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|------|------|
+| `methodId` | Long | O | 결제에 사용할 결제 수단 ID |
+
+```json
+{
+  "methodId": 1
+}
+```
+
+**Response** `200 OK`
+
+```json
+{
+  "status": 200,
+  "message": "구독이 재개되었습니다.",
+  "data": {
+    "subscriptionId": 10,
+    "status": "ACTIVE",
+    "nextBillingAt": "2026-05-01T00:00:00"
+  }
+}
+```
+
+---
+
+### 9-5. 구독 즉시 취소 (결제일 1일 이내 환불)
+
+```
+POST /api/subscriptions/refund
+```
+
+**Response** `200 OK`
+
+```json
+{
+  "status": 200,
+  "message": "구독이 취소되었습니다. 환불이 처리됩니다.",
+  "data": {
+    "subscriptionId": 10,
+    "status": "REFUNDED",
+    "canceledAt": "2026-04-21T10:00:00"
+  }
+}
+```
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `subscriptionId` | Long | 구독 ID |
+| `status` | String | 변경된 구독 상태 |
+| `canceledAt` | String | 취소 처리 일시 |
+
+---
+
+## 10. 결제 내역 (Payment History)
+
+> Base Path: `/api/payment-history` — **인증 필요** (`Authorization: Bearer <token>`)
+
+---
+
+### 10-1. 결제 내역 조회
+
+```
+GET /api/payment-history
+```
+
+**Query Parameters**
+
+| 파라미터 | 타입 | 필수 | 기본값 | 설명 |
+|---------|------|------|--------|------|
+| `cursorId` | Long | X | - | 이전 페이지 마지막 결제 내역 ID (커서) |
+| `size` | int | X | 10 | 페이지 크기 |
+| `status` | String | X | - | 결제 상태 필터 (`APPROVED`, `FAILED` 등) |
+
+**Response** `200 OK`
+
+```json
+{
+  "status": 200,
+  "message": "결제 이력 조회에 성공했습니다.",
+  "data": {
+    "content": [
+      {
+        "paymentId": 1,
+        "orderId": "order_abc123",
+        "orderName": "Key-Feed 월간 구독",
+        "amount": 9900,
+        "status": "APPROVED",
+        "failReason": null,
+        "approvedAt": "2026-04-01T00:00:00",
+        "createdAt": "2026-04-01T00:00:00",
+        "paymentMethod": {
+          "providerName": "신한카드",
+          "displayNumber": "1234",
+          "methodType": "CARD"
+        }
+      }
+    ],
+    "nextCursorId": null,
+    "hasNext": false
+  }
+}
+```
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `paymentId` | Long | 결제 내역 ID |
+| `orderId` | String | 주문 ID |
+| `orderName` | String | 주문명 |
+| `amount` | int | 결제 금액 |
+| `status` | String | 결제 상태 (`APPROVED` \| `FAILED` 등) |
+| `failReason` | String | 실패 사유 (실패 시에만 존재) |
+| `approvedAt` | String | 결제 승인 일시 |
+| `createdAt` | String | 결제 내역 생성 일시 |
+| `paymentMethod.providerName` | String | 카드사 이름 |
+| `paymentMethod.displayNumber` | String | 카드 번호 뒷자리 |
+| `paymentMethod.methodType` | String | 결제 수단 유형 |
+
+---
+
 ## API 목록 요약
 
 | 메서드 | 경로 | 설명 | 인증 |
@@ -1241,6 +1694,18 @@ GET /api/notifications
 | DELETE | `/api/sources/my/{userSourceId}` | 소스 구독 해제 | O |
 | PATCH | `/api/sources/my/{userSourceId}/receive-feed` | 소스 피드 수신 토글 | O |
 | GET | `/api/sources/recommended` | 추천 소스 목록 조회 | O |
-| GET | `/api/feed` | 개인화 피드 조회 | O |
+| GET | `/api/feed` | 개인화 피드 조회 (커서 기반) | O |
+| GET | `/api/feed/offset` | 개인화 피드 조회 (오프셋 기반) | O |
 | GET | `/api/notifications/subscribe` | SSE 구독 (실시간 알림 연결) | O |
 | GET | `/api/notifications` | 알림 목록 조회 | O |
+| GET | `/api/payment-methods/customer-key` | 고객 키 발급 | O |
+| POST | `/api/payment-methods/register` | 결제 수단 등록 | O |
+| GET | `/api/payment-methods` | 결제 수단 목록 조회 | O |
+| DELETE | `/api/payment-methods/{methodId}` | 결제 수단 삭제 | O |
+| PATCH | `/api/payment-methods/{methodId}/default` | 기본 결제 수단 변경 | O |
+| POST | `/api/subscriptions/start` | 구독 시작 | O |
+| GET | `/api/subscriptions/me` | 내 구독 조회 | O |
+| POST | `/api/subscriptions/cancel` | 구독 해지 | O |
+| POST | `/api/subscriptions/resume` | 구독 재개 | O |
+| POST | `/api/subscriptions/refund` | 구독 즉시 취소 (환불) | O |
+| GET | `/api/payment-history` | 결제 내역 조회 | O |
