@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { Bookmark, FolderKanban, Loader2 } from 'lucide-react';
-import { usePostStore } from '@/stores/postStore';
 import { useFolderStore } from '@/stores/folderStore';
 import { useUiStore } from '@/stores/uiStore';
 import { PostCard } from '@/features/feed/components/PostCard';
@@ -32,7 +31,6 @@ function transformBookmarkToPost(item: BookmarkItem): Post {
 }
 
 export function SavedTab() {
-    const { markAsRead } = usePostStore();
     const { activeFolder, setActiveFolder } = useFolderStore();
     const { openFolderManagement } = useUiStore();
 
@@ -72,7 +70,6 @@ export function SavedTab() {
 
     const handlePostClick = (post: Post) => {
         setSelectedPost(post);
-        markAsRead(post.id);
     };
 
     return (
