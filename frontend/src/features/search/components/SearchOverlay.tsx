@@ -3,7 +3,6 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { ArrowLeft, Search, X, ChevronRight, SearchX, Loader2 } from 'lucide-react';
 import { useUiStore } from '@/stores/uiStore';
-import { usePostStore } from '@/stores/postStore';
 import { TRENDING_KEYWORDS } from '@/lib/mock';
 import type { Post } from '@/types';
 import { PostDetailOverlay } from '@/features/feed/components/PostDetailOverlay';
@@ -12,7 +11,6 @@ import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
 
 export function SearchOverlay() {
     const { isSearchOpen, closeSearch, unmountSearch } = useUiStore();
-    const { markAsRead } = usePostStore();
     const overlayRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const { contextSafe } = useGSAP({ scope: overlayRef });
@@ -63,7 +61,6 @@ export function SearchOverlay() {
 
     const handlePostClick = (post: Post) => {
         setSelectedPost(post);
-        markAsRead(post.id);
     };
 
     const handleBack = () => {

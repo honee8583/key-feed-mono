@@ -1,4 +1,3 @@
-import { usePostStore } from '@/stores/postStore';
 import { PostCard } from '@/features/feed/components/PostCard';
 import type { Post } from '@/types';
 import { useState } from 'react';
@@ -8,7 +7,6 @@ import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
 import { Loader2 } from 'lucide-react';
 
 export function HomeTab() {
-    const { markAsRead } = usePostStore();
     const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
     const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } = useFeed();
@@ -20,7 +18,6 @@ export function HomeTab() {
 
     const handlePostClick = (post: Post) => {
         setSelectedPost(post);
-        markAsRead(post.id);
     };
 
     // Flatten pages to a single array of items and map to Post interface

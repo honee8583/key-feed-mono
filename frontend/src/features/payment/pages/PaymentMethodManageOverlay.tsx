@@ -72,7 +72,14 @@ export function PaymentMethodManageOverlay() {
     })();
 
     const handleCancelSubscription = () => {
-        if (!confirm('구독을 해지하시겠습니까?\n만료일까지 서비스는 계속 이용 가능합니다.')) return;
+        const confirmMsg =
+            '구독을 해지하시겠습니까?\n\n' +
+            '[해지 후 처리 안내]\n' +
+            '- 키워드: 만료일 다음 자정에 초과분 비활성화 (삭제 아님, 재구독 시 복원)\n' +
+            '- 북마크 폴더: 처리 없음 (초과 폴더 그대로 유지됨)\n\n' +
+            '만료일까지 서비스는 계속 이용 가능합니다.';
+
+        if (!confirm(confirmMsg)) return;
         cancelSub(undefined, {
             onError: (err: any) => {
                 alert(err?.response?.data?.message || '구독 해지에 실패했습니다.');
@@ -81,7 +88,14 @@ export function PaymentMethodManageOverlay() {
     };
 
     const handleRefundSubscription = () => {
-        if (!confirm('구독을 즉시 취소하고 환불받으시겠습니까?')) return;
+        const confirmMsg =
+            '구독을 즉시 취소하고 환불받으시겠습니까?\n\n' +
+            '[취소 후 처리 안내]\n' +
+            '- 키워드: 즉시 초과분 비활성화 (삭제 아님, 재구독 시 복원)\n' +
+            '- 북마크 폴더: 처리 없음 (초과 폴더 그대로 유지됨)\n\n' +
+            '서비스 이용이 즉시 중단됩니다.';
+
+        if (!confirm(confirmMsg)) return;
         refundSub(undefined, {
             onError: (err: any) => {
                 alert(err?.response?.data?.message || '구독 취소에 실패했습니다.');
