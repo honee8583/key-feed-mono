@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Rounded white square with a subtle drop shadow (simulating the shadow-sm/xl) -->
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.1" />
+    </filter>
+  </defs>
+  <rect width="108" height="108" x="10" y="10" rx="24" fill="#ffffff" filter="url(#shadow)" />
+  
+  <!-- Terminal Lucide Icon in Indigo-600 (#4f46e5) -->
+  <!-- The original lucide icon is 24x24. Scaling it up to fit in the 128x128 canvas -->
+  <!-- Target size: ~64x64, which is 2.66x scale. Let's use scale(2.66) -->
+  <g transform="translate(32, 32) scale(2.666)">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="4 17 10 11 4 5"/>
+      <line x1="12" x2="20" y1="19" y2="19"/>
+    </svg>
+  </g>
+</svg>
