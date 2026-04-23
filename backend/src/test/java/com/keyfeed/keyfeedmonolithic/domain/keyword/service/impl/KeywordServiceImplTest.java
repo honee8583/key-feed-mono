@@ -4,6 +4,8 @@ import com.keyfeed.keyfeedmonolithic.domain.auth.entity.User;
 import com.keyfeed.keyfeedmonolithic.domain.auth.repository.UserRepository;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.dto.KeywordResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.entity.Keyword;
+import com.keyfeed.keyfeedmonolithic.domain.keyword.event.KeywordCacheEvent;
+import com.keyfeed.keyfeedmonolithic.domain.keyword.event.KeywordCacheEvent.Operation;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.exception.KeywordLimitExceededException;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.repository.KeywordRepository;
 import com.keyfeed.keyfeedmonolithic.domain.payment.entity.SubscriptionStatus;
@@ -17,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -25,6 +28,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
@@ -44,6 +49,9 @@ class KeywordServiceImplTest {
 
     @Mock
     private SubscriptionRepository subscriptionRepository;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     private static final int KEYWORD_MAX_COUNT = 3;
     private static final int KEYWORD_SUBSCRIBER_MAX_COUNT = 10;
@@ -91,6 +99,7 @@ class KeywordServiceImplTest {
         // then
         assertThat(result.getName()).isEqualTo(keywordName);
         then(keywordRepository).should(times(1)).save(any(Keyword.class));
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent(keywordName, userId, Operation.ADD)));
     }
 
     @Test
@@ -113,6 +122,7 @@ class KeywordServiceImplTest {
 
         // then
         assertThat(result.getName()).isEqualTo(keywordName);
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent(keywordName, userId, Operation.ADD)));
     }
 
     @Test
@@ -134,6 +144,7 @@ class KeywordServiceImplTest {
                 .hasMessageContaining("최대 10개까지 이용하실 수 있습니다");
 
         then(keywordRepository).should(never()).save(any(Keyword.class));
+        then(eventPublisher).should(never()).publishEvent(any(KeywordCacheEvent.class));
     }
 
     @Test
@@ -154,6 +165,7 @@ class KeywordServiceImplTest {
                 .isInstanceOf(KeywordLimitExceededException.class);
 
         then(keywordRepository).should(never()).save(any(Keyword.class));
+        then(eventPublisher).should(never()).publishEvent(any(KeywordCacheEvent.class));
     }
 
     // ── 구독자(ACTIVE) ─────────────────────────────────────────────────
@@ -179,6 +191,7 @@ class KeywordServiceImplTest {
         // then
         assertThat(result.getName()).isEqualTo(keywordName);
         then(keywordRepository).should(times(1)).save(any(Keyword.class));
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent(keywordName, userId, Operation.ADD)));
     }
 
     @Test
@@ -200,6 +213,7 @@ class KeywordServiceImplTest {
                 .hasMessageContaining("키워드 등록 한도(10개)에 도달했습니다");
 
         then(keywordRepository).should(never()).save(any(Keyword.class));
+        then(eventPublisher).should(never()).publishEvent(any(KeywordCacheEvent.class));
     }
 
     @Test
@@ -223,6 +237,7 @@ class KeywordServiceImplTest {
         // then
         assertThat(result.getName()).isEqualTo(keywordName);
         then(keywordRepository).should(times(1)).save(any(Keyword.class));
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent(keywordName, userId, Operation.ADD)));
     }
 
     // ── 구독자(CANCELED, 만료 전) ─────────────────────────────────────
@@ -248,6 +263,7 @@ class KeywordServiceImplTest {
         // then
         assertThat(result.getName()).isEqualTo(keywordName);
         then(keywordRepository).should(times(1)).save(any(Keyword.class));
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent(keywordName, userId, Operation.ADD)));
     }
 
     @Test
@@ -268,6 +284,7 @@ class KeywordServiceImplTest {
                 .isInstanceOf(KeywordLimitExceededException.class);
 
         then(keywordRepository).should(never()).save(any(Keyword.class));
+        then(eventPublisher).should(never()).publishEvent(any(KeywordCacheEvent.class));
     }
 
     // ── 공통 예외 ──────────────────────────────────────────────────────
@@ -289,6 +306,7 @@ class KeywordServiceImplTest {
 
         then(subscriptionRepository).should(never()).existsByUserIdAndStatusIn(any(), any());
         then(keywordRepository).should(never()).save(any(Keyword.class));
+        then(eventPublisher).should(never()).publishEvent(any(KeywordCacheEvent.class));
     }
 
     @Test
@@ -304,6 +322,113 @@ class KeywordServiceImplTest {
                 .isInstanceOf(EntityNotFoundException.class);
 
         then(keywordRepository).should(never()).save(any(Keyword.class));
+        then(eventPublisher).should(never()).publishEvent(any(KeywordCacheEvent.class));
+    }
+
+    // ── Redis 동기화 ───────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("키워드 등록 시 Redis SADD 호출")
+    void 키워드_등록시_Redis_SADD_호출() {
+        // given
+        Long userId = 20L;
+        String keywordName = "레디스";
+        User user = makeUser(userId);
+        Keyword keyword = makeKeyword(1L, user, keywordName);
+
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(keywordRepository.existsByNameAndUser(keywordName, user)).willReturn(false);
+        given(subscriptionRepository.existsByUserIdAndStatusIn(userId, List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED))).willReturn(false);
+        given(keywordRepository.countByUserIdAndIsEnabledTrue(userId)).willReturn(1L);
+        given(keywordRepository.save(any(Keyword.class))).willReturn(keyword);
+
+        // when
+        keywordService.addKeyword(userId, keywordName);
+
+        // then
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent(keywordName, userId, Operation.ADD)));
+    }
+
+    @Test
+    @DisplayName("키워드 삭제 시 Redis SREM 호출")
+    void 키워드_삭제시_Redis_SREM_호출() {
+        // given
+        Long userId = 21L;
+        Long keywordId = 100L;
+        String keywordName = "삭제키워드";
+        User user = makeUser(userId);
+        Keyword keyword = makeKeyword(keywordId, user, keywordName);
+
+        given(keywordRepository.findByIdAndUserId(keywordId, userId)).willReturn(Optional.of(keyword));
+
+        // when
+        keywordService.deleteKeyword(userId, keywordId);
+
+        // then
+        then(keywordRepository).should(times(1)).delete(keyword);
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent(keywordName, userId, Operation.REMOVE)));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 키워드 삭제 시 EntityNotFoundException 발생, Redis 미호출")
+    void 존재하지않는_키워드_삭제시_예외_발생_Redis_미호출() {
+        // given
+        Long userId = 22L;
+        Long keywordId = 999L;
+
+        given(keywordRepository.findByIdAndUserId(keywordId, userId)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> keywordService.deleteKeyword(userId, keywordId))
+                .isInstanceOf(EntityNotFoundException.class);
+
+        then(eventPublisher).should(never()).publishEvent(any(KeywordCacheEvent.class));
+    }
+
+    @Test
+    @DisplayName("알림 ON 전환 시 Redis SADD 호출")
+    void 알림_ON_전환시_Redis_SADD_호출() {
+        // given
+        Long userId = 23L;
+        Long keywordId = 200L;
+        String keywordName = "토글온";
+        User user = makeUser(userId);
+        Keyword keyword = Keyword.builder()
+                .user(user)
+                .name(keywordName)
+                .isNotificationEnabled(false)
+                .build();
+
+        given(keywordRepository.findByIdAndUserId(keywordId, userId)).willReturn(Optional.of(keyword));
+        given(keywordRepository.save(any(Keyword.class))).willReturn(keyword);
+
+        // when
+        keywordService.toggleKeywordNotification(userId, keywordId);
+
+        // then: false → true 로 토글되었으므로 SADD
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent(keywordName, userId, Operation.ADD)));
+        then(eventPublisher).should(never()).publishEvent(argThat((Object e) -> e instanceof KeywordCacheEvent ke && ke.operation() == Operation.REMOVE));
+    }
+
+    @Test
+    @DisplayName("알림 OFF 전환 시 Redis SREM 호출")
+    void 알림_OFF_전환시_Redis_SREM_호출() {
+        // given
+        Long userId = 24L;
+        Long keywordId = 201L;
+        String keywordName = "토글오프";
+        User user = makeUser(userId);
+        Keyword keyword = makeKeyword(keywordId, user, keywordName); // isNotificationEnabled = true
+
+        given(keywordRepository.findByIdAndUserId(keywordId, userId)).willReturn(Optional.of(keyword));
+        given(keywordRepository.save(any(Keyword.class))).willReturn(keyword);
+
+        // when
+        keywordService.toggleKeywordNotification(userId, keywordId);
+
+        // then: true → false 로 토글되었으므로 SREM
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent(keywordName, userId, Operation.REMOVE)));
+        then(eventPublisher).should(never()).publishEvent(argThat((Object e) -> e instanceof KeywordCacheEvent ke && ke.operation() == Operation.ADD));
     }
 
     // ── deactivateExcessKeywords ───────────────────────────────────────
@@ -370,6 +495,58 @@ class KeywordServiceImplTest {
         // then: 예외 없이 정상 종료
     }
 
+    @Test
+    @DisplayName("비활성화 - 초과 키워드가 알림 ON이면 Redis SREM 호출")
+    void 구독_만료_초과_키워드_비활성화시_Redis_SREM_호출() {
+        // given
+        Long userId = 30L;
+        User user = makeUser(userId);
+        List<Keyword> keywords = List.of(
+                makeKeyword(1L, user, "키워드1"),
+                makeKeyword(2L, user, "키워드2"),
+                makeKeyword(3L, user, "키워드3"),
+                makeKeyword(4L, user, "키워드4")  // 초과 - 알림 ON
+        );
+
+        given(keywordRepository.findByUserIdOrderByCreatedAtAsc(userId)).willReturn(keywords);
+
+        // when
+        keywordService.deactivateExcessKeywords(userId, 3);
+
+        // then
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent("키워드4", userId, Operation.REMOVE)));
+        then(eventPublisher).should(never()).publishEvent(eq(new KeywordCacheEvent("키워드1", userId, Operation.REMOVE)));
+        then(eventPublisher).should(never()).publishEvent(eq(new KeywordCacheEvent("키워드2", userId, Operation.REMOVE)));
+        then(eventPublisher).should(never()).publishEvent(eq(new KeywordCacheEvent("키워드3", userId, Operation.REMOVE)));
+    }
+
+    @Test
+    @DisplayName("비활성화 - 초과 키워드가 알림 OFF이면 Redis SREM 미호출")
+    void 구독_만료_초과_키워드_비활성화시_알림_OFF_키워드는_Redis_미호출() {
+        // given
+        Long userId = 31L;
+        User user = makeUser(userId);
+        Keyword notificationOffKeyword = Keyword.builder()
+                .user(user)
+                .name("알림OFF키워드")
+                .isNotificationEnabled(false)
+                .build();
+        List<Keyword> keywords = List.of(
+                makeKeyword(1L, user, "키워드1"),
+                makeKeyword(2L, user, "키워드2"),
+                makeKeyword(3L, user, "키워드3"),
+                notificationOffKeyword  // 초과 - 알림 OFF
+        );
+
+        given(keywordRepository.findByUserIdOrderByCreatedAtAsc(userId)).willReturn(keywords);
+
+        // when
+        keywordService.deactivateExcessKeywords(userId, 3);
+
+        // then
+        then(eventPublisher).should(never()).publishEvent(any(KeywordCacheEvent.class));
+    }
+
     // ── reactivateAllKeywords ─────────────────────────────────────────
 
     @Test
@@ -377,11 +554,52 @@ class KeywordServiceImplTest {
     void 비활성화된_키워드_전체_복원() {
         // given
         Long userId = 14L;
+        given(keywordRepository.findByUserIdAndIsEnabledFalseAndIsNotificationEnabledTrue(userId))
+                .willReturn(List.of());
 
         // when
         keywordService.reactivateAllKeywords(userId);
 
         // then
         then(keywordRepository).should(times(1)).enableAllByUserId(userId);
+    }
+
+    @Test
+    @DisplayName("재구독 - 비활성화된 키워드 복원 시 Redis SADD 호출")
+    void 재구독_키워드_복원시_Redis_SADD_호출() {
+        // given
+        Long userId = 32L;
+        User user = makeUser(userId);
+        List<Keyword> disabledKeywords = List.of(
+                makeKeyword(4L, user, "키워드4"),
+                makeKeyword(5L, user, "키워드5")
+        );
+
+        given(keywordRepository.findByUserIdAndIsEnabledFalseAndIsNotificationEnabledTrue(userId))
+                .willReturn(disabledKeywords);
+
+        // when
+        keywordService.reactivateAllKeywords(userId);
+
+        // then
+        then(keywordRepository).should(times(1)).enableAllByUserId(userId);
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent("키워드4", userId, Operation.ADD)));
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent("키워드5", userId, Operation.ADD)));
+    }
+
+    @Test
+    @DisplayName("재구독 - 복원할 키워드 없으면 Redis SADD 미호출")
+    void 복원할_키워드_없으면_Redis_미호출() {
+        // given
+        Long userId = 33L;
+        given(keywordRepository.findByUserIdAndIsEnabledFalseAndIsNotificationEnabledTrue(userId))
+                .willReturn(List.of());
+
+        // when
+        keywordService.reactivateAllKeywords(userId);
+
+        // then
+        then(keywordRepository).should(times(1)).enableAllByUserId(userId);
+        then(eventPublisher).should(never()).publishEvent(any(KeywordCacheEvent.class));
     }
 }
