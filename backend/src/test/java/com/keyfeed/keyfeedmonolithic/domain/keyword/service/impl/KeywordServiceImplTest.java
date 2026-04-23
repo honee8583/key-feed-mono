@@ -4,8 +4,9 @@ import com.keyfeed.keyfeedmonolithic.domain.auth.entity.User;
 import com.keyfeed.keyfeedmonolithic.domain.auth.repository.UserRepository;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.dto.KeywordResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.entity.Keyword;
+import com.keyfeed.keyfeedmonolithic.domain.keyword.event.KeywordCacheEvent;
+import com.keyfeed.keyfeedmonolithic.domain.keyword.event.KeywordCacheEvent.Operation;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.exception.KeywordLimitExceededException;
-import com.keyfeed.keyfeedmonolithic.domain.keyword.repository.KeywordCacheRepository;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.repository.KeywordRepository;
 import com.keyfeed.keyfeedmonolithic.domain.payment.entity.SubscriptionStatus;
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.SubscriptionRepository;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -26,6 +28,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -48,7 +51,7 @@ class KeywordServiceImplTest {
     private SubscriptionRepository subscriptionRepository;
 
     @Mock
-    private KeywordCacheRepository keywordCacheRepository;
+    private ApplicationEventPublisher eventPublisher;
 
     private static final int KEYWORD_MAX_COUNT = 3;
     private static final int KEYWORD_SUBSCRIBER_MAX_COUNT = 10;
@@ -96,7 +99,7 @@ class KeywordServiceImplTest {
         // then
         assertThat(result.getName()).isEqualTo(keywordName);
         then(keywordRepository).should(times(1)).save(any(Keyword.class));
-        then(keywordCacheRepository).should(times(1)).addUserToKeyword(eq(keywordName), eq(userId));
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent(keywordName, userId, Operation.ADD)));
     }
 
     @Test
@@ -119,7 +122,7 @@ class KeywordServiceImplTest {
 
         // then
         assertThat(result.getName()).isEqualTo(keywordName);
-        then(keywordCacheRepository).should(times(1)).addUserToKeyword(eq(keywordName), eq(userId));
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent(keywordName, userId, Operation.ADD)));
     }
 
     @Test
@@ -141,7 +144,7 @@ class KeywordServiceImplTest {
                 .hasMessageContaining("최대 10개까지 이용하실 수 있습니다");
 
         then(keywordRepository).should(never()).save(any(Keyword.class));
-        then(keywordCacheRepository).should(never()).addUserToKeyword(any(), any());
+        then(eventPublisher).should(never()).publishEvent(any(KeywordCacheEvent.class));
     }
 
     @Test
@@ -162,7 +165,7 @@ class KeywordServiceImplTest {
                 .isInstanceOf(KeywordLimitExceededException.class);
 
         then(keywordRepository).should(never()).save(any(Keyword.class));
-        then(keywordCacheRepository).should(never()).addUserToKeyword(any(), any());
+        then(eventPublisher).should(never()).publishEvent(any(KeywordCacheEvent.class));
     }
 
     // ── 구독자(ACTIVE) ─────────────────────────────────────────────────
@@ -188,7 +191,7 @@ class KeywordServiceImplTest {
         // then
         assertThat(result.getName()).isEqualTo(keywordName);
         then(keywordRepository).should(times(1)).save(any(Keyword.class));
-        then(keywordCacheRepository).should(times(1)).addUserToKeyword(eq(keywordName), eq(userId));
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent(keywordName, userId, Operation.ADD)));
     }
 
     @Test
@@ -210,7 +213,7 @@ class KeywordServiceImplTest {
                 .hasMessageContaining("키워드 등록 한도(10개)에 도달했습니다");
 
         then(keywordRepository).should(never()).save(any(Keyword.class));
-        then(keywordCacheRepository).should(never()).addUserToKeyword(any(), any());
+        then(eventPublisher).should(never()).publishEvent(any(KeywordCacheEvent.class));
     }
 
     @Test
@@ -234,7 +237,7 @@ class KeywordServiceImplTest {
         // then
         assertThat(result.getName()).isEqualTo(keywordName);
         then(keywordRepository).should(times(1)).save(any(Keyword.class));
-        then(keywordCacheRepository).should(times(1)).addUserToKeyword(eq(keywordName), eq(userId));
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent(keywordName, userId, Operation.ADD)));
     }
 
     // ── 구독자(CANCELED, 만료 전) ─────────────────────────────────────
@@ -260,7 +263,7 @@ class KeywordServiceImplTest {
         // then
         assertThat(result.getName()).isEqualTo(keywordName);
         then(keywordRepository).should(times(1)).save(any(Keyword.class));
-        then(keywordCacheRepository).should(times(1)).addUserToKeyword(eq(keywordName), eq(userId));
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent(keywordName, userId, Operation.ADD)));
     }
 
     @Test
@@ -281,7 +284,7 @@ class KeywordServiceImplTest {
                 .isInstanceOf(KeywordLimitExceededException.class);
 
         then(keywordRepository).should(never()).save(any(Keyword.class));
-        then(keywordCacheRepository).should(never()).addUserToKeyword(any(), any());
+        then(eventPublisher).should(never()).publishEvent(any(KeywordCacheEvent.class));
     }
 
     // ── 공통 예외 ──────────────────────────────────────────────────────
@@ -303,7 +306,7 @@ class KeywordServiceImplTest {
 
         then(subscriptionRepository).should(never()).existsByUserIdAndStatusIn(any(), any());
         then(keywordRepository).should(never()).save(any(Keyword.class));
-        then(keywordCacheRepository).should(never()).addUserToKeyword(any(), any());
+        then(eventPublisher).should(never()).publishEvent(any(KeywordCacheEvent.class));
     }
 
     @Test
@@ -319,7 +322,7 @@ class KeywordServiceImplTest {
                 .isInstanceOf(EntityNotFoundException.class);
 
         then(keywordRepository).should(never()).save(any(Keyword.class));
-        then(keywordCacheRepository).should(never()).addUserToKeyword(any(), any());
+        then(eventPublisher).should(never()).publishEvent(any(KeywordCacheEvent.class));
     }
 
     // ── Redis 동기화 ───────────────────────────────────────────────────
@@ -343,7 +346,7 @@ class KeywordServiceImplTest {
         keywordService.addKeyword(userId, keywordName);
 
         // then
-        then(keywordCacheRepository).should(times(1)).addUserToKeyword(eq(keywordName), eq(userId));
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent(keywordName, userId, Operation.ADD)));
     }
 
     @Test
@@ -363,7 +366,7 @@ class KeywordServiceImplTest {
 
         // then
         then(keywordRepository).should(times(1)).delete(keyword);
-        then(keywordCacheRepository).should(times(1)).removeUserFromKeyword(eq(keywordName), eq(userId));
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent(keywordName, userId, Operation.REMOVE)));
     }
 
     @Test
@@ -379,7 +382,7 @@ class KeywordServiceImplTest {
         assertThatThrownBy(() -> keywordService.deleteKeyword(userId, keywordId))
                 .isInstanceOf(EntityNotFoundException.class);
 
-        then(keywordCacheRepository).should(never()).removeUserFromKeyword(any(), any());
+        then(eventPublisher).should(never()).publishEvent(any(KeywordCacheEvent.class));
     }
 
     @Test
@@ -403,8 +406,8 @@ class KeywordServiceImplTest {
         keywordService.toggleKeywordNotification(userId, keywordId);
 
         // then: false → true 로 토글되었으므로 SADD
-        then(keywordCacheRepository).should(times(1)).addUserToKeyword(eq(keywordName), eq(userId));
-        then(keywordCacheRepository).should(never()).removeUserFromKeyword(any(), any());
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent(keywordName, userId, Operation.ADD)));
+        then(eventPublisher).should(never()).publishEvent(argThat((Object e) -> e instanceof KeywordCacheEvent ke && ke.operation() == Operation.REMOVE));
     }
 
     @Test
@@ -424,8 +427,8 @@ class KeywordServiceImplTest {
         keywordService.toggleKeywordNotification(userId, keywordId);
 
         // then: true → false 로 토글되었으므로 SREM
-        then(keywordCacheRepository).should(times(1)).removeUserFromKeyword(eq(keywordName), eq(userId));
-        then(keywordCacheRepository).should(never()).addUserToKeyword(any(), any());
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent(keywordName, userId, Operation.REMOVE)));
+        then(eventPublisher).should(never()).publishEvent(argThat((Object e) -> e instanceof KeywordCacheEvent ke && ke.operation() == Operation.ADD));
     }
 
     // ── deactivateExcessKeywords ───────────────────────────────────────
@@ -511,10 +514,10 @@ class KeywordServiceImplTest {
         keywordService.deactivateExcessKeywords(userId, 3);
 
         // then
-        then(keywordCacheRepository).should(times(1)).removeUserFromKeyword(eq("키워드4"), eq(userId));
-        then(keywordCacheRepository).should(never()).removeUserFromKeyword(eq("키워드1"), eq(userId));
-        then(keywordCacheRepository).should(never()).removeUserFromKeyword(eq("키워드2"), eq(userId));
-        then(keywordCacheRepository).should(never()).removeUserFromKeyword(eq("키워드3"), eq(userId));
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent("키워드4", userId, Operation.REMOVE)));
+        then(eventPublisher).should(never()).publishEvent(eq(new KeywordCacheEvent("키워드1", userId, Operation.REMOVE)));
+        then(eventPublisher).should(never()).publishEvent(eq(new KeywordCacheEvent("키워드2", userId, Operation.REMOVE)));
+        then(eventPublisher).should(never()).publishEvent(eq(new KeywordCacheEvent("키워드3", userId, Operation.REMOVE)));
     }
 
     @Test
@@ -541,7 +544,7 @@ class KeywordServiceImplTest {
         keywordService.deactivateExcessKeywords(userId, 3);
 
         // then
-        then(keywordCacheRepository).should(never()).removeUserFromKeyword(any(), any());
+        then(eventPublisher).should(never()).publishEvent(any(KeywordCacheEvent.class));
     }
 
     // ── reactivateAllKeywords ─────────────────────────────────────────
@@ -580,8 +583,8 @@ class KeywordServiceImplTest {
 
         // then
         then(keywordRepository).should(times(1)).enableAllByUserId(userId);
-        then(keywordCacheRepository).should(times(1)).addUserToKeyword(eq("키워드4"), eq(userId));
-        then(keywordCacheRepository).should(times(1)).addUserToKeyword(eq("키워드5"), eq(userId));
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent("키워드4", userId, Operation.ADD)));
+        then(eventPublisher).should(times(1)).publishEvent(eq(new KeywordCacheEvent("키워드5", userId, Operation.ADD)));
     }
 
     @Test
@@ -597,6 +600,6 @@ class KeywordServiceImplTest {
 
         // then
         then(keywordRepository).should(times(1)).enableAllByUserId(userId);
-        then(keywordCacheRepository).should(never()).addUserToKeyword(any(), any());
+        then(eventPublisher).should(never()).publishEvent(any(KeywordCacheEvent.class));
     }
 }

@@ -5,8 +5,9 @@ import com.keyfeed.keyfeedmonolithic.domain.auth.repository.UserRepository;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.dto.KeywordResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.dto.TrendingKeywordResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.entity.Keyword;
+import com.keyfeed.keyfeedmonolithic.domain.keyword.event.KeywordCacheEvent;
+import com.keyfeed.keyfeedmonolithic.domain.keyword.event.KeywordCacheEvent.Operation;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.exception.KeywordLimitExceededException;
-import com.keyfeed.keyfeedmonolithic.domain.keyword.repository.KeywordCacheRepository;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.repository.KeywordRepository;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.service.KeywordService;
 import com.keyfeed.keyfeedmonolithic.domain.payment.entity.SubscriptionStatus;
@@ -17,6 +18,7 @@ import com.keyfeed.keyfeedmonolithic.global.message.ErrorMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,7 +36,7 @@ public class KeywordServiceImpl implements KeywordService {
     private final KeywordRepository keywordRepository;
     private final UserRepository userRepository;
     private final SubscriptionRepository subscriptionRepository;
-    private final KeywordCacheRepository keywordCacheRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${app.limits.keyword-max-count}")
     private int keywordMaxCount;
@@ -81,7 +83,7 @@ public class KeywordServiceImpl implements KeywordService {
         keywordRepository.save(keyword);
 
         if (keyword.isNotificationEnabled()) {
-            keywordCacheRepository.addUserToKeyword(name, userId);
+            eventPublisher.publishEvent(new KeywordCacheEvent(name, userId, Operation.ADD));
         }
 
         return KeywordResponseDto.from(keyword);
@@ -94,11 +96,8 @@ public class KeywordServiceImpl implements KeywordService {
         keyword.setNotificationEnabled(!keyword.isNotificationEnabled());
         keywordRepository.save(keyword);
 
-        if (keyword.isNotificationEnabled()) {
-            keywordCacheRepository.addUserToKeyword(keyword.getName(), userId);
-        } else {
-            keywordCacheRepository.removeUserFromKeyword(keyword.getName(), userId);
-        }
+        Operation op = keyword.isNotificationEnabled() ? Operation.ADD : Operation.REMOVE;
+        eventPublisher.publishEvent(new KeywordCacheEvent(keyword.getName(), userId, op));
 
         return KeywordResponseDto.from(keyword);
     }
@@ -108,7 +107,7 @@ public class KeywordServiceImpl implements KeywordService {
     public void deleteKeyword(Long userId, Long keywordId) {
         Keyword keyword = findKeywordByIdAndUserId(keywordId, userId);
         keywordRepository.delete(keyword);
-        keywordCacheRepository.removeUserFromKeyword(keyword.getName(), userId);
+        eventPublisher.publishEvent(new KeywordCacheEvent(keyword.getName(), userId, Operation.REMOVE));
     }
 
     @Override
@@ -141,7 +140,7 @@ public class KeywordServiceImpl implements KeywordService {
             Keyword keyword = keywords.get(i);
             keyword.disable();
             if (keyword.isNotificationEnabled()) {
-                keywordCacheRepository.removeUserFromKeyword(keyword.getName(), userId);
+                eventPublisher.publishEvent(new KeywordCacheEvent(keyword.getName(), userId, Operation.REMOVE));
             }
         }
     }
@@ -153,7 +152,7 @@ public class KeywordServiceImpl implements KeywordService {
                 keywordRepository.findByUserIdAndIsEnabledFalseAndIsNotificationEnabledTrue(userId);
         keywordRepository.enableAllByUserId(userId);
         toReactivate.forEach(keyword ->
-                keywordCacheRepository.addUserToKeyword(keyword.getName(), userId));
+                eventPublisher.publishEvent(new KeywordCacheEvent(keyword.getName(), userId, Operation.ADD)));
     }
 
     private boolean hasKeywordBenefit(Long userId) {
