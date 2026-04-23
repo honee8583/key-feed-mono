@@ -138,14 +138,22 @@ public class KeywordServiceImpl implements KeywordService {
     public void deactivateExcessKeywords(Long userId, int keepCount) {
         List<Keyword> keywords = keywordRepository.findByUserIdOrderByCreatedAtAsc(userId);
         for (int i = keepCount; i < keywords.size(); i++) {
-            keywords.get(i).disable();
+            Keyword keyword = keywords.get(i);
+            keyword.disable();
+            if (keyword.isNotificationEnabled()) {
+                keywordCacheRepository.removeUserFromKeyword(keyword.getName(), userId);
+            }
         }
     }
 
     @Override
     @Transactional
     public void reactivateAllKeywords(Long userId) {
+        List<Keyword> toReactivate =
+                keywordRepository.findByUserIdAndIsEnabledFalseAndIsNotificationEnabledTrue(userId);
         keywordRepository.enableAllByUserId(userId);
+        toReactivate.forEach(keyword ->
+                keywordCacheRepository.addUserToKeyword(keyword.getName(), userId));
     }
 
     private boolean hasKeywordBenefit(Long userId) {

@@ -492,6 +492,58 @@ class KeywordServiceImplTest {
         // then: 예외 없이 정상 종료
     }
 
+    @Test
+    @DisplayName("비활성화 - 초과 키워드가 알림 ON이면 Redis SREM 호출")
+    void 구독_만료_초과_키워드_비활성화시_Redis_SREM_호출() {
+        // given
+        Long userId = 30L;
+        User user = makeUser(userId);
+        List<Keyword> keywords = List.of(
+                makeKeyword(1L, user, "키워드1"),
+                makeKeyword(2L, user, "키워드2"),
+                makeKeyword(3L, user, "키워드3"),
+                makeKeyword(4L, user, "키워드4")  // 초과 - 알림 ON
+        );
+
+        given(keywordRepository.findByUserIdOrderByCreatedAtAsc(userId)).willReturn(keywords);
+
+        // when
+        keywordService.deactivateExcessKeywords(userId, 3);
+
+        // then
+        then(keywordCacheRepository).should(times(1)).removeUserFromKeyword(eq("키워드4"), eq(userId));
+        then(keywordCacheRepository).should(never()).removeUserFromKeyword(eq("키워드1"), eq(userId));
+        then(keywordCacheRepository).should(never()).removeUserFromKeyword(eq("키워드2"), eq(userId));
+        then(keywordCacheRepository).should(never()).removeUserFromKeyword(eq("키워드3"), eq(userId));
+    }
+
+    @Test
+    @DisplayName("비활성화 - 초과 키워드가 알림 OFF이면 Redis SREM 미호출")
+    void 구독_만료_초과_키워드_비활성화시_알림_OFF_키워드는_Redis_미호출() {
+        // given
+        Long userId = 31L;
+        User user = makeUser(userId);
+        Keyword notificationOffKeyword = Keyword.builder()
+                .user(user)
+                .name("알림OFF키워드")
+                .isNotificationEnabled(false)
+                .build();
+        List<Keyword> keywords = List.of(
+                makeKeyword(1L, user, "키워드1"),
+                makeKeyword(2L, user, "키워드2"),
+                makeKeyword(3L, user, "키워드3"),
+                notificationOffKeyword  // 초과 - 알림 OFF
+        );
+
+        given(keywordRepository.findByUserIdOrderByCreatedAtAsc(userId)).willReturn(keywords);
+
+        // when
+        keywordService.deactivateExcessKeywords(userId, 3);
+
+        // then
+        then(keywordCacheRepository).should(never()).removeUserFromKeyword(any(), any());
+    }
+
     // ── reactivateAllKeywords ─────────────────────────────────────────
 
     @Test
@@ -499,11 +551,52 @@ class KeywordServiceImplTest {
     void 비활성화된_키워드_전체_복원() {
         // given
         Long userId = 14L;
+        given(keywordRepository.findByUserIdAndIsEnabledFalseAndIsNotificationEnabledTrue(userId))
+                .willReturn(List.of());
 
         // when
         keywordService.reactivateAllKeywords(userId);
 
         // then
         then(keywordRepository).should(times(1)).enableAllByUserId(userId);
+    }
+
+    @Test
+    @DisplayName("재구독 - 비활성화된 키워드 복원 시 Redis SADD 호출")
+    void 재구독_키워드_복원시_Redis_SADD_호출() {
+        // given
+        Long userId = 32L;
+        User user = makeUser(userId);
+        List<Keyword> disabledKeywords = List.of(
+                makeKeyword(4L, user, "키워드4"),
+                makeKeyword(5L, user, "키워드5")
+        );
+
+        given(keywordRepository.findByUserIdAndIsEnabledFalseAndIsNotificationEnabledTrue(userId))
+                .willReturn(disabledKeywords);
+
+        // when
+        keywordService.reactivateAllKeywords(userId);
+
+        // then
+        then(keywordRepository).should(times(1)).enableAllByUserId(userId);
+        then(keywordCacheRepository).should(times(1)).addUserToKeyword(eq("키워드4"), eq(userId));
+        then(keywordCacheRepository).should(times(1)).addUserToKeyword(eq("키워드5"), eq(userId));
+    }
+
+    @Test
+    @DisplayName("재구독 - 복원할 키워드 없으면 Redis SADD 미호출")
+    void 복원할_키워드_없으면_Redis_미호출() {
+        // given
+        Long userId = 33L;
+        given(keywordRepository.findByUserIdAndIsEnabledFalseAndIsNotificationEnabledTrue(userId))
+                .willReturn(List.of());
+
+        // when
+        keywordService.reactivateAllKeywords(userId);
+
+        // then
+        then(keywordRepository).should(times(1)).enableAllByUserId(userId);
+        then(keywordCacheRepository).should(never()).addUserToKeyword(any(), any());
     }
 }
