@@ -6,6 +6,7 @@ import com.keyfeed.keyfeedmonolithic.domain.keyword.dto.KeywordResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.dto.TrendingKeywordResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.entity.Keyword;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.exception.KeywordLimitExceededException;
+import com.keyfeed.keyfeedmonolithic.domain.keyword.repository.KeywordCacheRepository;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.repository.KeywordRepository;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.service.KeywordService;
 import com.keyfeed.keyfeedmonolithic.domain.payment.entity.SubscriptionStatus;
@@ -33,6 +34,7 @@ public class KeywordServiceImpl implements KeywordService {
     private final KeywordRepository keywordRepository;
     private final UserRepository userRepository;
     private final SubscriptionRepository subscriptionRepository;
+    private final KeywordCacheRepository keywordCacheRepository;
 
     @Value("${app.limits.keyword-max-count}")
     private int keywordMaxCount;
@@ -78,6 +80,10 @@ public class KeywordServiceImpl implements KeywordService {
                 .build();
         keywordRepository.save(keyword);
 
+        if (keyword.isNotificationEnabled()) {
+            keywordCacheRepository.addUserToKeyword(name, userId);
+        }
+
         return KeywordResponseDto.from(keyword);
     }
 
@@ -88,6 +94,12 @@ public class KeywordServiceImpl implements KeywordService {
         keyword.setNotificationEnabled(!keyword.isNotificationEnabled());
         keywordRepository.save(keyword);
 
+        if (keyword.isNotificationEnabled()) {
+            keywordCacheRepository.addUserToKeyword(keyword.getName(), userId);
+        } else {
+            keywordCacheRepository.removeUserFromKeyword(keyword.getName(), userId);
+        }
+
         return KeywordResponseDto.from(keyword);
     }
 
@@ -96,6 +108,7 @@ public class KeywordServiceImpl implements KeywordService {
     public void deleteKeyword(Long userId, Long keywordId) {
         Keyword keyword = findKeywordByIdAndUserId(keywordId, userId);
         keywordRepository.delete(keyword);
+        keywordCacheRepository.removeUserFromKeyword(keyword.getName(), userId);
     }
 
     @Override
