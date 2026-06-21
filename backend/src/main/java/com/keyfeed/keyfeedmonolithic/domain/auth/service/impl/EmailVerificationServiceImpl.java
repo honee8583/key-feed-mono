@@ -12,10 +12,11 @@ import com.keyfeed.keyfeedmonolithic.domain.auth.repository.EmailVerificationRep
 import com.keyfeed.keyfeedmonolithic.domain.auth.service.EmailVerificationService;
 import com.keyfeed.keyfeedmonolithic.domain.auth.util.VerificationCodeUtil;
 import com.keyfeed.keyfeedmonolithic.global.error.exception.EntityNotFoundException;
-import com.keyfeed.keyfeedmonolithic.global.mail.EmailClient;
+import com.keyfeed.keyfeedmonolithic.global.mail.EmailSendEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.thymeleaf.context.Context;
@@ -42,7 +43,7 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
 
     private final EmailVerificationRepository emailVerificationRepository;
     private final SpringTemplateEngine templateEngine;
-    private final EmailClient emailClient;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public void sendVerificationEmail(String email, EmailPurpose purpose, String subject) {
@@ -180,7 +181,7 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
 
     private void sendEmail(String email, String code, String subject) {
         String html = buildVerificationHtml(email, code);
-        emailClient.sendOneEmail(email, subject, html);
+        eventPublisher.publishEvent(new EmailSendEvent(email, subject, html));
     }
 
     private EmailVerification saveNewEmailVerification(String email, String code, LocalDateTime now, EmailPurpose purpose) {

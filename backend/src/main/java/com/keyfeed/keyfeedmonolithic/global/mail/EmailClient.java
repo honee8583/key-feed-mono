@@ -26,11 +26,20 @@ public class EmailClient {
             mimeMessageHelper.setText(text, true);
 
             mailSender.send(mimeMessage);
+            log.info("이메일 발송 완료. to={}, subject={}", maskEmail(to), subject);
 
         } catch (MessagingException e){
-            log.error("Error sending email", e);
+            log.error("이메일 발송 실패. to={}, subject={}", maskEmail(to), subject, e);
             throw new EmailSendFailedException();
         }
+    }
+
+    private String maskEmail(String email) {
+        int at = email.indexOf('@');
+        if (at <= 2) {
+            return "***" + email.substring(at);
+        }
+        return email.substring(0, 2) + "***" + email.substring(at);
     }
 
 }
