@@ -132,9 +132,13 @@ public class FeedServiceImpl implements FeedService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
-        Map<String, Long> bookmarkMap = bookmarkService.getBookmarkMap(userId, contentIds);
-        if (bookmarkMap != null) {
-            feeds.forEach(feed -> feed.setBookmarkId(bookmarkMap.get(feed.getContentId())));
+        try {
+            Map<String, Long> bookmarkMap = bookmarkService.getBookmarkMap(userId, contentIds);
+            if (bookmarkMap != null) {
+                feeds.forEach(feed -> feed.setBookmarkId(bookmarkMap.get(feed.getContentId())));
+            }
+        } catch (Exception e) {
+            log.warn("북마크 상태 조회 실패 - 북마크 없이 피드를 반환합니다. userId={}", userId, e);
         }
     }
 
