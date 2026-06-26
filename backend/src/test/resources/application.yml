@@ -5,8 +5,13 @@ spring:
     username: sa
     password:
 
+  flyway:
+    enabled: false   # 테스트는 H2 사용 → MySQL 전용 마이그레이션 미적용, Hibernate가 스키마 생성
+
   jpa:
     show-sql: true
+    hibernate:
+      ddl-auto: create-drop
     properties:
       hibernate:
         format_sql: true
@@ -39,9 +44,17 @@ jasypt:
     password: test_password
     bean: jasyptEncryptor
 
+jwt:
+  secret: jwt_key
+  expiration_time: 600000
+  refresh_expiration_time: 1209600000
+
 app:
   limits:
     keyword-max-count: 3
     keyword-subscriber-max-count: 10
     folder-max-count: 3
     folder-subscriber-max-count: 20
+
+cors:
+  allowed-origins: http://localhost:3000

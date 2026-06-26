@@ -12,6 +12,12 @@ spring:
     hibernate:
       ddl-auto: validate
 
+  flyway:
+    enabled: true
+    baseline-on-migrate: true   # 기존(비어있지 않은) DB는 V1로 baseline 처리 후 V2+ 적용
+    baseline-version: 1
+    locations: classpath:db/migration
+
   thymeleaf:
     cache: false
     prefix: classpath:/templates/
