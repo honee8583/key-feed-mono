@@ -1,13 +1,18 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { AuthWrapper } from '@/components/ui/AuthWrapper';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { cn } from '@/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 import { useLogin } from '../hooks/useLogin';
 import type { LoginRequest } from '../types/auth.types';
+
+// Brand wordmark shown top-left. (Design mock uses "tracer" — swap to your brand.)
+const BRAND = 'tracer';
 
 const loginSchema = z.object({
     email: z.string().min(1, '이메일을 입력해주세요.').email('올바른 이메일 형식이 아닙니다.'),
@@ -16,11 +21,18 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+// Exact field styling from the Claude Design login screen.
+const inputClass =
+    'w-full h-[50px] border border-hairline rounded-[4px] px-3.5 text-[16px] text-ink ' +
+    'placeholder:text-muted outline-none transition-colors focus:border-form-focus';
+
 export function LoginPage() {
     const navigate = useNavigate();
     const setPendingEmail = useAuthStore((state) => state.setPendingEmail);
     const { mutateAsync: loginMutation, isPending } = useLogin();
     const [loginError, setLoginError] = useState<string | null>(null);
+
+    const screenRef = useRef<HTMLDivElement>(null);
 
     const {
         register,
@@ -28,11 +40,17 @@ export function LoginPage() {
         formState: { errors },
     } = useForm<LoginFormValues>({
         resolver: zodResolver(loginSchema),
-        defaultValues: {
-            email: '',
-            password: '',
-        },
+        defaultValues: { email: '', password: '' },
     });
+
+    // Matches the design's `scrFade` screen entrance.
+    useGSAP(() => {
+        gsap.fromTo(
+            screenRef.current,
+            { opacity: 0, y: 8 },
+            { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' }
+        );
+    }, []);
 
     const onSubmit = async (data: LoginFormValues) => {
         setLoginError(null);
@@ -41,8 +59,7 @@ export function LoginPage() {
             navigate('/home');
         } catch (error) {
             console.error('Login failed:', error);
-            // In a real app, parse axios error response message
-            const apiError = error as { response?: { status?: number, data?: { message?: string } } };
+            const apiError = error as { response?: { status?: number; data?: { message?: string } } };
             const errorMessage = apiError?.response?.data?.message;
 
             if (apiError?.response?.status === 400 && errorMessage === 'EMAIL_VERIFICATION_REQUIRED') {
@@ -56,58 +73,119 @@ export function LoginPage() {
     };
 
     return (
-        <AuthWrapper title="Login" subtitle="반갑습니다! 로그인 후 서비스를 이용해주세요.">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                <div>
-                    <div className="relative group">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                        <input
-                            type="email"
-                            placeholder="이메일 주소"
-                            {...register('email')}
-                            className={`w-full bg-white/40 border ${errors.email ? 'border-red-400' : 'border-white/60'} rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:ring-4 focus:ring-slate-100 outline-none transition-all placeholder:font-medium`}
-                        />
-                    </div>
-                    {errors.email && <p className="text-red-500 text-xs mt-1.5 ml-2 font-bold">{errors.email.message}</p>}
-                </div>
+        <div ref={screenRef} className="flex min-h-screen flex-col bg-canvas font-pretendard text-ink">
+            {/* Logo header */}
+            <div className="flex items-center gap-2 px-5 py-6 sm:px-10">
+                <button
+                    type="button"
+                    onClick={() => navigate('/')}
+                    className="flex items-center gap-2"
+                    aria-label={BRAND}
+                >
+                    <span className="h-4 w-4 rounded-[5px] bg-deep-green" />
+                    <span className="font-display text-[21px] font-medium tracking-[-0.4px] text-primary">
+                        {BRAND}
+                    </span>
+                </button>
+            </div>
 
-                <div>
-                    <div className="relative group">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            {/* Centered login card */}
+            <div className="flex flex-1 items-center justify-center px-5 pb-20 pt-4">
+                <div className="w-full max-w-[400px]">
+                    <div className="mb-3.5 font-mono text-[12px] uppercase tracking-mono-label text-coral">
+                        LOGIN
+                    </div>
+                    <h1 className="mb-3 font-display text-[32px] font-medium leading-[1.04] tracking-tightest text-primary sm:text-[40px]">
+                        다시 오셨어요
+                    </h1>
+                    <p className="mb-[34px] text-[16px] text-[#616161]">
+                        계정에 로그인하고 피드를 이어보세요.
+                    </p>
+
+                    <form onSubmit={handleSubmit(onSubmit)} noValidate>
+                        <label htmlFor="email" className="mb-[7px] block text-[13px] text-[#616161]">
+                            이메일
+                        </label>
                         <input
+                            id="email"
+                            type="email"
+                            autoComplete="email"
+                            placeholder="you@example.com"
+                            {...register('email')}
+                            className={cn(inputClass, 'mb-5', errors.email && 'border-brand-error focus:border-brand-error')}
+                        />
+                        {errors.email && (
+                            <p className="-mt-3.5 mb-3 text-[13px] text-brand-error">{errors.email.message}</p>
+                        )}
+
+                        <div className="mb-[7px] flex items-baseline justify-between">
+                            <label htmlFor="password" className="text-[13px] text-[#616161]">
+                                비밀번호
+                            </label>
+                            <button
+                                type="button"
+                                className="text-[13px] text-action-blue"
+                                onClick={() => { /* TODO: 비밀번호 재설정 플로우 연결 */ }}
+                            >
+                                비밀번호를 잊으셨나요?
+                            </button>
+                        </div>
+                        <input
+                            id="password"
                             type="password"
+                            autoComplete="current-password"
                             placeholder="비밀번호"
                             {...register('password')}
-                            className={`w-full bg-white/40 border ${errors.password ? 'border-red-400' : 'border-white/60'} rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:ring-4 focus:ring-slate-100 outline-none transition-all placeholder:font-medium`}
+                            className={cn(inputClass, 'mb-7', errors.password && 'border-brand-error focus:border-brand-error')}
                         />
+                        {errors.password && (
+                            <p className="-mt-5 mb-3 text-[13px] text-brand-error">{errors.password.message}</p>
+                        )}
+
+                        {loginError && (
+                            <div className="mb-[18px] rounded-[4px] border border-brand-error/20 bg-brand-error/5 px-3.5 py-3 text-[13px] text-brand-error">
+                                {loginError}
+                            </div>
+                        )}
+
+                        <button
+                            type="submit"
+                            disabled={isPending}
+                            className="mb-[18px] flex h-[52px] w-full items-center justify-center rounded-[32px] bg-primary text-[16px] font-medium text-canvas transition-colors hover:bg-cohere-black disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                            {isPending ? <Loader2 className="animate-spin" size={20} /> : '로그인'}
+                        </button>
+                    </form>
+
+                    <div className="mb-[18px] flex items-center gap-3">
+                        <div className="h-px flex-1 bg-[#e5e7eb]" />
+                        <span className="text-[13px] text-muted">또는</span>
+                        <div className="h-px flex-1 bg-[#e5e7eb]" />
                     </div>
-                    {errors.password && <p className="text-red-500 text-xs mt-1.5 ml-2 font-bold">{errors.password.message}</p>}
-                </div>
 
-                {loginError && (
-                    <div className="bg-red-50 text-red-500 text-xs font-bold p-3 rounded-xl border border-red-100 text-center">
-                        {loginError}
-                    </div>
-                )}
-
-                <button
-                    type="submit"
-                    disabled={isPending}
-                    className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-sm uppercase shadow-xl mt-4 active:scale-95 transition-transform flex items-center justify-center disabled:opacity-70 disabled:active:scale-100"
-                >
-                    {isPending ? <Loader2 className="animate-spin" size={20} /> : '로그인'}
-                </button>
-
-                <div className="text-center pt-4">
                     <button
                         type="button"
-                        onClick={() => navigate('/auth/signup')}
-                        className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest"
+                        onClick={() => { /* TODO: Google OAuth 연결 */ }}
+                        className="flex h-[52px] w-full items-center justify-center gap-[9px] rounded-[32px] border border-hairline bg-canvas text-[15px] font-medium text-primary transition-colors hover:bg-[#f7f7f5]"
                     >
-                        아직 회원이 아니신가요? 가입하기
+                        <span className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-full bg-soft-stone font-display text-[12px] font-bold text-primary">
+                            G
+                        </span>
+                        Google로 계속하기
                     </button>
+
+                    <div className="mt-[30px] text-center text-[14px] text-[#75758a]">
+                        아직 계정이 없으신가요?{' '}
+                        <button
+                            type="button"
+                            onClick={() => navigate('/auth/signup')}
+                            className="font-medium text-action-blue"
+                        >
+                            회원가입
+                        </button>
+                    </div>
                 </div>
-            </form>
-        </AuthWrapper>
+            </div>
+        </div>
     );
 }
