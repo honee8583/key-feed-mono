@@ -20,17 +20,23 @@ export const router = createBrowserRouter([
         element: <Navigate to="/auth/login" replace />,
     },
     {
-        // Login uses its own full-bleed responsive layout (Cohere design system),
-        // so it sits outside the glass AuthLayout shell.
+        // Login, signup and the verify step use their own full-bleed responsive
+        // layout (Cohere design system), so they sit outside the glass AuthLayout shell.
         path: '/auth/login',
         element: <LoginPage />,
+    },
+    {
+        path: '/auth/signup',
+        element: <SignupPage />,
+    },
+    {
+        path: '/auth/verify',
+        element: <VerifyPage />,
     },
     {
         path: '/auth',
         element: <AuthLayout />,
         children: [
-            { path: 'signup', element: <SignupPage /> },
-            { path: 'verify', element: <VerifyPage /> },
             { path: 'welcome', element: <WelcomePage /> },
         ]
     },
