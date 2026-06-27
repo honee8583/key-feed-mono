@@ -13,30 +13,12 @@ export function TabButton({ active, icon, label, onClick }: TabButtonProps) {
         <button
             onClick={onClick}
             className={cn(
-                "flex flex-col items-center gap-1 transition-all relative",
-                active ? "text-slate-900" : "text-slate-400"
+                'flex flex-1 flex-col items-center gap-1 py-1 transition-colors',
+                active ? 'text-primary' : 'text-muted'
             )}
         >
-            <div
-                className="relative z-10 active:-translate-y-1 active:scale-[1.15] transition-transform"
-            >
-                {icon}
-            </div>
-
-            <span
-                className={cn(
-                    "text-[7px] font-black uppercase tracking-widest",
-                    active ? "text-slate-900" : "text-slate-400"
-                )}
-            >
-                {label}
-            </span>
-
-            {active && (
-                <div
-                    className="absolute -top-1 -left-2 -right-2 -bottom-1 bg-white/70 blur-xl rounded-full -z-10 animate-in fade-in duration-300"
-                />
-            )}
+            <span className="transition-transform active:scale-110">{icon}</span>
+            <span className="font-mono text-[10px] tracking-[0.3px]">{label}</span>
         </button>
     );
 }
