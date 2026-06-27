@@ -35,7 +35,13 @@ public class EmailClient {
     }
 
     private String maskEmail(String email) {
+        if (email == null) {
+            return "";
+        }
         int at = email.indexOf('@');
+        if (at == -1) {
+            return email.length() <= 2 ? "***" : email.substring(0, 2) + "***";
+        }
         if (at <= 2) {
             return "***" + email.substring(at);
         }
