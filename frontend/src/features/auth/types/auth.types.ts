@@ -39,3 +39,18 @@ export interface VerificationResponse {
     retryAt: string | null;
     expiresAt: string;
 }
+
+export interface PasswordResetRequest {
+    email: string;
+}
+
+export interface PasswordResetVerifyRequest {
+    email: string;
+    code: string;
+}
+
+export interface PasswordResetConfirmRequest {
+    email: string;
+    newPassword: string;
+    confirmPassword: string;
+}

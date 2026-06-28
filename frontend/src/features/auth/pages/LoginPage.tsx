@@ -125,7 +125,7 @@ export function LoginPage() {
                             <button
                                 type="button"
                                 className="text-[13px] text-action-blue"
-                                onClick={() => { /* TODO: 비밀번호 재설정 플로우 연결 */ }}
+                                onClick={() => navigate('/auth/forgot-password')}
                             >
                                 비밀번호를 잊으셨나요?
                             </button>
