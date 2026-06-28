@@ -1,7 +1,9 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from '@/layouts/AppLayout';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { AuthGuard } from '@/components/ui/AuthGuard';
+
+import { LandingPage } from '@/features/landing/pages/LandingPage';
 
 import { SignupPage } from '@/features/auth/pages/SignupPage';
 import { VerifyPage } from '@/features/auth/pages/VerifyPage';
@@ -16,8 +18,9 @@ import { PaymentCallback } from '@/features/payment/pages/PaymentCallback';
 
 export const router = createBrowserRouter([
     {
+        // 공개 소개(랜딩) 페이지. 모바일은 온보딩 캐러셀, 데스크톱은 마케팅 랜딩.
         path: '/',
-        element: <Navigate to="/auth/login" replace />,
+        element: <LandingPage />,
     },
     {
         // Login, signup and the verify step use their own full-bleed responsive
