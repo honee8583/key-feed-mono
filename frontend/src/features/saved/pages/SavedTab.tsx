@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react';
-import { Bookmark, FolderKanban, Loader2 } from 'lucide-react';
+import { Bookmark, SlidersHorizontal, Loader2 } from 'lucide-react';
 import { useFolderStore } from '@/stores/folderStore';
 import { useUiStore } from '@/stores/uiStore';
 import { PostCard } from '@/features/feed/components/PostCard';
 import { PostDetailOverlay } from '@/features/feed/components/PostDetailOverlay';
-import { ICON_MAP, AVAILABLE_COLORS } from '@/utils/constants';
+import { cn } from '@/utils/cn';
 import type { Post } from '@/types';
 import { useBookmarks, useBookmarkFolders } from '../api/bookmarkApi';
 import type { BookmarkItem } from '../types';
@@ -14,19 +14,19 @@ function transformBookmarkToPost(item: BookmarkItem): Post {
     return {
         id: item.content.contentId,
         company: item.content.sourceName,
-        logo: '/favicon.ico', // 기본 로고 폴백
+        logo: item.content.thumbnailUrl || '',
         title: item.content.title,
         excerpt: item.content.summary,
-        date: new Date(item.content.publishedAt).toLocaleDateString(),
-        category: item.folderName || 'Uncategorized',
+        date: item.content.publishedAt,
+        category: '',
         tags: [],
-        color: 'bg-slate-100', // 기본 색상
+        color: '',
         readTime: '',
-        content: '', // 원문 링크로 나가는 경우가 많으므로 비워둠
+        content: '',
         thumbnail: item.content.thumbnailUrl,
         folder: item.folderName,
         bookmarkId: item.bookmarkId,
-        originalUrl: item.content.originalUrl
+        originalUrl: item.content.originalUrl,
     };
 }
 
@@ -39,143 +39,112 @@ export function SavedTab() {
     const { data: folderListResponse } = useBookmarkFolders();
     const fetchedFolders = folderListResponse || [];
 
-    // API 연동: 전체 폴더("전체")면 folderId를 undefined로, 아니면 해당 폴더 ID(현재는 Mock UI 구조상 activeFolder가 string이므로 Name 매칭 혹은 전체조회)
-    // TODO: 완벽한 폴더 연동 시 activeFolder를 객체나 ID 기반으로 통일 필요. 일단은 전체 조회로 적용
-    const {
-        data,
-        fetchNextPage,
-        hasNextPage,
-        isFetchingNextPage,
-        status
-    } = useBookmarks(undefined, 20);
+    const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } = useBookmarks(undefined, 20);
 
-    const observerTarget = useIntersectionObserver({
+    const { targetRef } = useIntersectionObserver({
         onIntersect: fetchNextPage,
         enabled: hasNextPage && !isFetchingNextPage,
     });
 
-    const savedPosts = useMemo(() => {
-        if (!data) return [];
-        const allItems = data.pages.flatMap(page => page.content || []);
+    const allItems = useMemo(
+        () => (data ? data.pages.flatMap((page) => page.content || []).filter((it) => it && it.content) : []),
+        [data]
+    );
 
-        // 프론트엔드 임시 필터: activeFolder 기반 (추후 folderId 기반 쿼리로 개선 가능)
-        const filteredItems = allItems.filter(item => {
-            if (!item || !item.content) return false;
-            return activeFolder === "전체" || item.folderName === activeFolder;
-        });
+    // 불러온 북마크 기준 폴더별 개수(페이지네이션 특성상 근사치).
+    const counts = useMemo(() => {
+        const map: Record<string, number> = {};
+        for (const item of allItems) {
+            if (item.folderName) map[item.folderName] = (map[item.folderName] ?? 0) + 1;
+        }
+        return map;
+    }, [allItems]);
 
-        // Adapter 적용
-        return filteredItems.map(transformBookmarkToPost);
-    }, [data, activeFolder]);
-
-    const handlePostClick = (post: Post) => {
-        setSelectedPost(post);
-    };
+    const savedPosts = useMemo(
+        () =>
+            allItems
+                .filter((item) => activeFolder === '전체' || item.folderName === activeFolder)
+                .map(transformBookmarkToPost),
+        [allItems, activeFolder]
+    );
 
     return (
         <>
-            <div className="px-5 pt-2 pb-24">
-                <div className="flex items-end justify-between mb-4 px-1">
-                    <div>
-                        <h3 className="text-lg font-black text-slate-800 leading-none uppercase tracking-tighter">
-                            북마크
-                        </h3>
-                        <p className="text-[8px] text-slate-400 font-black uppercase tracking-widest mt-1">
-                            {savedPosts.length} Items in {activeFolder}
-                        </p>
-                    </div>
+            <div className="px-5 pb-24 pt-2">
+                {/* Header */}
+                <div className="flex items-center justify-between pt-3">
+                    <h1 className="font-display text-[30px] font-medium tracking-tightest text-primary">북마크</h1>
                     <button
                         onClick={openFolderManagement}
-                        className="p-2 bg-white/60 border border-white/60 rounded-xl text-slate-500 hover:text-slate-800 transition-colors shadow-sm active:scale-90 transition-transform"
+                        aria-label="폴더 관리"
+                        className="flex h-[38px] w-[38px] items-center justify-center rounded-full text-ink transition-colors hover:bg-soft-stone active:bg-soft-stone"
                     >
-                        <FolderKanban size={18} />
+                        <SlidersHorizontal size={19} strokeWidth={1.7} />
                     </button>
                 </div>
 
-                {/* Folder Tabs */}
-                <div className="flex gap-1.5 overflow-x-auto pb-4 no-scrollbar mb-2">
-                    {[{ name: "전체" } as any, ...fetchedFolders].map((f) => {
+                {/* Folder filter chips */}
+                <div className="no-scrollbar -mx-5 mt-3.5 flex gap-2 overflow-x-auto px-5 pb-3.5">
+                    {[{ name: '전체' }, ...fetchedFolders].map((f) => {
                         const name = f.name;
-                        const isAll = name === "전체";
-                        
-                        const isHexColor = typeof f.color === 'string' && f.color.startsWith('#');
-                        const IconComponent = f.icon ? ICON_MAP[f.icon as keyof typeof ICON_MAP] : null;
                         const isActive = activeFolder === name;
-                        
-                        let buttonClassName = "px-4 py-1.5 rounded-xl whitespace-nowrap text-[9px] font-black transition-all border ";
-                        let style = {};
-
-                        if (isActive) {
-                            if (isHexColor) {
-                                buttonClassName += "text-white border-transparent shadow-md";
-                                style = { backgroundColor: f.color };
-                            } else {
-                                const config = AVAILABLE_COLORS.find(c => c.name === f.color);
-                                buttonClassName += (config ? `${config.bg} text-white border-transparent shadow-md` : "bg-indigo-600 text-white border-transparent shadow-md");
-                            }
-                        } else {
-                            buttonClassName += "bg-white/40 text-slate-400 border-white/40";
-                        }
+                        const count = name === '전체' ? allItems.length : counts[name] ?? 0;
 
                         return (
                             <button
                                 key={name}
                                 onClick={() => setActiveFolder(name)}
-                                className={buttonClassName}
-                                style={style}
+                                className={cn(
+                                    'flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-[7px] text-[13px] font-medium transition-colors',
+                                    isActive
+                                        ? 'border-primary bg-primary text-white'
+                                        : 'border-[#f2f2f2] bg-[#f7f7f8] text-[#75758a] hover:bg-[#f0f0f2]'
+                                )}
                             >
-                                <div className="flex items-center gap-1.5">
-                                    {!isAll && (IconComponent ? <IconComponent size={10} /> : f.icon ? <span>{f.icon}</span> : <ICON_MAP.Folder size={10} />)}
-                                    {name}
-                                </div>
+                                {name}
+                                <span className={cn('font-mono text-[11px]', isActive ? 'text-white/60' : 'text-muted')}>
+                                    {count}
+                                </span>
                             </button>
                         );
                     })}
                 </div>
 
-                {/* Saved Posts List */}
+                {/* Sub label */}
+                <div className="py-2 font-mono text-[11px] tracking-[0.6px] text-muted">
+                    {activeFolder} · {savedPosts.length}
+                </div>
+
+                {/* Saved list */}
                 {status === 'pending' ? (
-                    <div className="flex justify-center py-20">
-                        <Loader2 className="w-8 h-8 animate-spin text-slate-300" />
+                    <div className="flex justify-center py-16">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted" />
                     </div>
                 ) : status === 'error' ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-center opacity-50">
-                        <Bookmark size={32} className="mb-3 text-slate-400" />
-                        <p className="text-[12px] font-bold text-slate-500">
-                            북마크를 불러오는데 실패했습니다.
-                        </p>
-                    </div>
+                    <div className="py-20 text-center text-[14px] text-muted">북마크를 불러오지 못했어요.</div>
                 ) : savedPosts.length > 0 ? (
-                    <div className="space-y-3">
+                    <div>
                         {savedPosts.map((post) => (
-                            <PostCard
-                                key={post.id}
-                                post={post}
-                                onClick={handlePostClick}
-                            />
+                            <PostCard key={post.id} post={post} onClick={setSelectedPost} />
                         ))}
-                        {/* 무한 스크롤 옵저버 타겟 */}
-                        <div ref={observerTarget.targetRef} className="h-10 flex items-center justify-center">
-                            {isFetchingNextPage && <Loader2 className="w-5 h-5 animate-spin text-slate-400" />}
+                        <div ref={targetRef} className="flex h-10 items-center justify-center">
+                            {isFetchingNextPage && <Loader2 className="h-5 w-5 animate-spin text-muted" />}
                         </div>
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center justify-center py-20 text-center opacity-30">
-                        <Bookmark size={32} className="mb-3 text-slate-400" />
-                        <p className="text-[10px] font-black uppercase text-slate-500">
-                            저장된 콘텐츠가 없습니다
-                        </p>
+                    <div className="py-24 text-center text-muted">
+                        <Bookmark size={34} strokeWidth={1.5} className="mx-auto mb-4 text-[#c4c4cc]" />
+                        <div className="mb-2 font-mono text-[12px] tracking-[0.5px]">NO BOOKMARKS</div>
+                        <div className="text-[15px] leading-[1.5]">
+                            저장된 글이 없어요.
+                            <br />
+                            피드에서 북마크 아이콘을 눌러 저장해보세요.
+                        </div>
                     </div>
                 )}
             </div>
 
-            {/* Detail Overlay */}
-            {selectedPost && (
-                <PostDetailOverlay
-                    post={selectedPost}
-                    onClose={() => setSelectedPost(null)}
-                />
-            )}
+            {selectedPost && <PostDetailOverlay post={selectedPost} onClose={() => setSelectedPost(null)} />}
         </>
     );
 }

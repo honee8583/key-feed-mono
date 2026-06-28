@@ -77,6 +77,8 @@ export function useUpdateBookmarkFolder() {
         mutationFn: updateBookmarkFolder,
         onSuccess: () => {
              queryClient.invalidateQueries({ queryKey: folderKeys.all });
+             // 폴더명이 바뀌면 북마크 항목의 folderName도 갱신되어야 개수/필터가 맞는다.
+             queryClient.invalidateQueries({ queryKey: bookmarkKeys.all });
         }
     });
 }
@@ -87,6 +89,8 @@ export function useDeleteBookmarkFolder() {
         mutationFn: deleteBookmarkFolder,
         onSuccess: () => {
              queryClient.invalidateQueries({ queryKey: folderKeys.all });
+             // 삭제된 폴더의 글들이 다른 폴더로 이동하므로 북마크 목록도 다시 불러온다.
+             queryClient.invalidateQueries({ queryKey: bookmarkKeys.all });
         }
     });
 }
