@@ -7,6 +7,7 @@ import { SignupPage } from '@/features/auth/pages/SignupPage';
 import { VerifyPage } from '@/features/auth/pages/VerifyPage';
 import { WelcomePage } from '@/features/auth/pages/WelcomePage';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
+import { ForgotPasswordPage } from '@/features/auth/pages/ForgotPasswordPage';
 
 import { HomeTab } from '@/features/feed/pages/HomeTab';
 import { ExploreTab } from '@/features/explore/pages/ExploreTab';
@@ -32,6 +33,10 @@ export const router = createBrowserRouter([
     {
         path: '/auth/verify',
         element: <VerifyPage />,
+    },
+    {
+        path: '/auth/forgot-password',
+        element: <ForgotPasswordPage />,
     },
     {
         path: '/auth',
