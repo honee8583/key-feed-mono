@@ -17,6 +17,10 @@ export interface UiState {
     isSubscriptionOpen: boolean;
     isPaymentHistoryMounted: boolean;
     isPaymentHistoryOpen: boolean;
+    isPasswordChangeMounted: boolean;
+    isPasswordChangeOpen: boolean;
+    isWithdrawMounted: boolean;
+    isWithdrawOpen: boolean;
 
     openSearch: () => void;
     closeSearch: () => void;
@@ -49,6 +53,14 @@ export interface UiState {
     openPaymentHistory: () => void;
     closePaymentHistory: () => void;
     unmountPaymentHistory: () => void;
+
+    openPasswordChange: () => void;
+    closePasswordChange: () => void;
+    unmountPasswordChange: () => void;
+
+    openWithdraw: () => void;
+    closeWithdraw: () => void;
+    unmountWithdraw: () => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -68,6 +80,10 @@ export const useUiStore = create<UiState>((set) => ({
     isSubscriptionOpen: false,
     isPaymentHistoryMounted: false,
     isPaymentHistoryOpen: false,
+    isPasswordChangeMounted: false,
+    isPasswordChangeOpen: false,
+    isWithdrawMounted: false,
+    isWithdrawOpen: false,
 
     openSearch: () => set({ isSearchMounted: true, isSearchOpen: true }),
     closeSearch: () => set({ isSearchOpen: false }),
@@ -100,4 +116,12 @@ export const useUiStore = create<UiState>((set) => ({
     openPaymentHistory: () => set({ isPaymentHistoryMounted: true, isPaymentHistoryOpen: true }),
     closePaymentHistory: () => set({ isPaymentHistoryOpen: false }),
     unmountPaymentHistory: () => set({ isPaymentHistoryMounted: false }),
+
+    openPasswordChange: () => set({ isPasswordChangeMounted: true, isPasswordChangeOpen: true }),
+    closePasswordChange: () => set({ isPasswordChangeOpen: false }),
+    unmountPasswordChange: () => set({ isPasswordChangeMounted: false }),
+
+    openWithdraw: () => set({ isWithdrawMounted: true, isWithdrawOpen: true }),
+    closeWithdraw: () => set({ isWithdrawOpen: false }),
+    unmountWithdraw: () => set({ isWithdrawMounted: false }),
 }));

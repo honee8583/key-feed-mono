@@ -1,146 +1,160 @@
 import { useNavigate } from 'react-router-dom';
-import { Mail, Bell, ChevronRight, LogOut, UserX, Crown, CreditCard, Link as LinkIcon } from 'lucide-react';
+import { ChevronRight, Crown } from 'lucide-react';
 
 import { useAuthStore } from '@/stores/authStore';
 import { useUiStore } from '@/stores/uiStore';
 import { useMySubscription } from '@/features/payment/api/subscriptionApi';
+import { useMySources } from '../api/sourceApi';
+
+// 마이페이지 행(設定 항목) — 라벨 + (선택) 카운트 + 셰브론
+function SettingRow({
+    label,
+    value,
+    onClick,
+    last = false,
+    danger = false,
+}: {
+    label: string;
+    value?: string;
+    onClick?: () => void;
+    last?: boolean;
+    danger?: boolean;
+}) {
+    return (
+        <button
+            onClick={onClick}
+            className={`flex w-full items-center px-4 py-[15px] text-left transition-colors active:bg-black/[0.02] ${
+                last ? '' : 'border-b border-[#f2f2f2]'
+            }`}
+        >
+            <span className={`flex-1 text-[16px] ${danger ? 'text-brand-error' : 'text-ink'}`}>{label}</span>
+            {value && <span className="mr-2 text-[13px] text-muted">{value}</span>}
+            <ChevronRight size={16} className="text-[#c4c4cc]" />
+        </button>
+    );
+}
+
+// 그룹 라벨 — tracer 모노 캡션
+function GroupLabel({ children }: { children: React.ReactNode }) {
+    return (
+        <div className="mb-[10px] pl-0.5 font-mono text-[11px] uppercase tracking-mono-label text-muted">
+            {children}
+        </div>
+    );
+}
 
 export function ProfileTab() {
     const navigate = useNavigate();
+    const user = useAuthStore((state) => state.user);
     const logout = useAuthStore((state) => state.logout);
+
     const openUpgradePlan = useUiStore((state) => state.openUpgradePlan);
     const openSourcesManagement = useUiStore((state) => state.openSourcesManagement);
     const openPaymentMethod = useUiStore((state) => state.openPaymentMethod);
+    const openPasswordChange = useUiStore((state) => state.openPasswordChange);
+    const openWithdraw = useUiStore((state) => state.openWithdraw);
 
     const { data: subscription } = useMySubscription();
-    const isSubscribed = subscription?.status === 'ACTIVE' || subscription?.status === 'CANCELED' || subscription?.status === 'PAUSED';
+    const isSubscribed =
+        subscription?.status === 'ACTIVE' ||
+        subscription?.status === 'CANCELED' ||
+        subscription?.status === 'PAUSED';
+
+    const { data: mySources } = useMySources();
+    const sourceCount = mySources?.length;
 
     const handleLogout = () => {
         logout();
         navigate('/auth/login');
     };
 
+    const name = user?.name ?? '사용자';
+    const email = user?.email ?? '';
+    const initial = name.trim().charAt(0) || 'U';
+
     return (
-        <div className="px-5 pt-2 pb-24">
-            <div className="bg-white/40 backdrop-blur-xl rounded-[28px] border border-white/60 p-5 shadow-sm mb-6 flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-gradient-to-tr from-slate-200 to-slate-100 rounded-2xl border-4 border-white shadow-md flex items-center justify-center mb-3 overflow-hidden">
-                    <img
-                        src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"
-                        alt="avatar"
-                        className="w-full h-full object-cover"
-                    />
-                </div>
-                <h4 className="text-base font-black text-slate-800 mb-0.5">홍길동</h4>
-                <p className="text-[11px] text-slate-500 font-medium mb-3 flex items-center gap-1 opacity-70">
-                    <Mail size={10} /> developer.hong@example.com
-                </p>
-                <div className="flex gap-1.5">
-                    <div className="px-3 py-1 bg-white/60 rounded-full border border-white/80 text-[8px] font-black text-slate-600 uppercase">
-                        Frontend
-                    </div>
-                    <div className="px-3 py-1 bg-white/60 rounded-full border border-white/80 text-[8px] font-black text-slate-600 uppercase">
-                        React
-                    </div>
-                    {isSubscribed && (
-                        <div className="px-3 py-1 bg-amber-400 rounded-full border border-amber-300 text-[8px] font-black text-white uppercase flex items-center gap-1">
-                            <Crown size={8} strokeWidth={3} /> PRO
-                        </div>
-                    )}
-                </div>
+        <div className="min-h-full bg-[#fafafa] font-pretendard">
+            {/* 헤더 */}
+            <div className="px-5 pb-2 pt-6">
+                <h1 className="font-display text-[30px] font-medium tracking-tightest text-primary">마이페이지</h1>
             </div>
 
-            {!isSubscribed && (
-                <button
-                    onClick={openUpgradePlan}
-                    className="w-full text-left bg-gradient-to-r from-amber-400 to-orange-500 rounded-[28px] p-6 shadow-lg shadow-orange-500/20 mb-8 flex items-center justify-between active:scale-[0.98] transition-transform group overflow-hidden relative border border-orange-400/50"
-                >
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-2xl -translate-y-8 translate-x-8" />
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-1.5 text-white/90 mb-1">
-                            <Crown size={14} strokeWidth={2.5} />
-                            <span className="text-[10px] font-black uppercase tracking-widest">Premium</span>
-                        </div>
-                        <h3 className="text-xl font-black text-white tracking-tight mb-1 group-hover:scale-[1.02] origin-left transition-transform">
-                            UPGRADE TO PRO
-                        </h3>
-                        <p className="text-[11px] text-white/80 font-bold tracking-tight">
-                            무제한 북마크 & 프리미엄 기능
-                        </p>
+            <div className="px-5 pb-28 pt-4">
+                {/* 프로필 */}
+                <div className="mb-7 flex items-center gap-4">
+                    <div className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-full bg-soft-stone font-display text-[22px] font-semibold text-deep-green">
+                        {initial}
                     </div>
-                    <ChevronRight size={24} className="text-white relative z-10 opacity-80 group-hover:opacity-100 group-hover:translate-x-1 transition-all" strokeWidth={2.5} />
-                </button>
-            )}
-
-            <div className="space-y-2">
-                <div className="mb-4">
-                    <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 mb-2">
-                        Preferences
-                    </h5>
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                            <span className="truncate text-[19px] font-semibold text-ink">{name}</span>
+                            {isSubscribed && (
+                                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-deep-green px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                                    <Crown size={9} strokeWidth={3} /> PRO
+                                </span>
+                            )}
+                        </div>
+                        <div className="truncate text-[14px] text-[#75758a]">{email}</div>
+                    </div>
                 </div>
 
-                <button
-                    className="w-full bg-white/40 border border-white/60 rounded-xl p-3.5 flex items-center justify-between active:scale-95 transition-transform"
-                >
-                    <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-white/50 rounded-lg flex items-center justify-center text-indigo-500 shadow-sm border border-white/50">
-                            <Bell size={16} />
+                {/* PRO 업그레이드 (미구독자) */}
+                {!isSubscribed && (
+                    <button
+                        onClick={openUpgradePlan}
+                        className="group relative mb-7 flex w-full items-center justify-between overflow-hidden rounded-[22px] bg-deep-green px-5 py-[18px] text-left transition-transform active:scale-[0.985]"
+                    >
+                        <div className="relative z-10">
+                            <div className="mb-1.5 flex items-center gap-1.5 text-coral-soft">
+                                <Crown size={13} strokeWidth={2.5} />
+                                <span className="font-mono text-[11px] uppercase tracking-mono-label">Premium</span>
+                            </div>
+                            <div className="font-display text-[18px] font-medium tracking-tightest text-white">
+                                PRO로 업그레이드
+                            </div>
+                            <p className="mt-0.5 text-[12px] text-white/70">무제한 북마크 &amp; 프리미엄 기능</p>
                         </div>
-                        <span className="text-xs font-bold text-slate-700">알림 설정</span>
-                    </div>
-                    <ChevronRight size={14} className="text-slate-300" />
-                </button>
+                        <ChevronRight
+                            size={22}
+                            strokeWidth={2}
+                            className="relative z-10 text-white/80 transition-transform group-hover:translate-x-1"
+                        />
+                    </button>
+                )}
 
-                <button
-                    onClick={openSourcesManagement}
-                    className="w-full bg-white/40 border border-white/60 rounded-xl p-3.5 flex items-center justify-between active:scale-95 transition-transform"
-                >
-                    <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-white/50 rounded-lg flex items-center justify-center text-teal-500 shadow-sm border border-white/50">
-                            <LinkIcon size={16} />
-                        </div>
-                        <span className="text-xs font-bold text-slate-700">내 소스 관리</span>
-                    </div>
-                    <ChevronRight size={14} className="text-slate-300" />
-                </button>
-
-                <button
-                    onClick={openPaymentMethod}
-                    className="w-full bg-white/40 border border-white/60 rounded-xl p-3.5 flex items-center justify-between active:scale-95 transition-transform"
-                >
-                    <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-white/50 rounded-lg flex items-center justify-center text-amber-500 shadow-sm border border-white/50">
-                            <CreditCard size={16} />
-                        </div>
-                        <span className="text-xs font-bold text-slate-700">결제 및 구독</span>
-                    </div>
-                    <ChevronRight size={14} className="text-slate-300" />
-                </button>
-
-                <div className="mt-8 mb-4">
-                    <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 mb-2">
-                        Danger Zone
-                    </h5>
+                {/* 콘텐츠 */}
+                <GroupLabel>콘텐츠</GroupLabel>
+                <div className="mb-6 overflow-hidden rounded-2xl border border-[#f2f2f2] bg-white">
+                    <SettingRow
+                        label="팔로잉 블로그"
+                        value={sourceCount !== undefined ? `${sourceCount}개` : undefined}
+                        onClick={openSourcesManagement}
+                    />
+                    <SettingRow label="저장한 글" onClick={() => navigate('/saved')} last />
                 </div>
 
+                {/* 계정 */}
+                <GroupLabel>계정</GroupLabel>
+                <div className="mb-7 overflow-hidden rounded-2xl border border-[#f2f2f2] bg-white">
+                    <SettingRow label="비밀번호 변경" onClick={openPasswordChange} />
+                    <SettingRow label="결제 및 구독" onClick={openPaymentMethod} last />
+                </div>
+
+                {/* 로그아웃 / 회원탈퇴 */}
                 <button
                     onClick={handleLogout}
-                    className="w-full bg-white/40 border border-white/60 rounded-xl p-3.5 flex items-center gap-3 active:scale-95 transition-transform"
+                    className="h-[50px] w-full rounded-[32px] border border-[#e5e7eb] bg-white text-[15px] font-medium text-brand-error transition-colors hover:bg-[#fff5f5]"
                 >
-                    <div className="w-8 h-8 bg-white/50 rounded-lg flex items-center justify-center text-slate-500 shadow-sm border border-white/50">
-                        <LogOut size={16} />
-                    </div>
-                    <span className="text-xs font-bold text-slate-700">로그아웃</span>
+                    로그아웃
                 </button>
-
-                <button
-                    onClick={() => navigate('/auth/signup')}
-                    className="w-full bg-rose-50/20 border border-rose-100/30 rounded-xl p-3.5 flex items-center gap-3 active:scale-95 transition-transform"
-                >
-                    <div className="w-8 h-8 bg-rose-50/50 rounded-lg flex items-center justify-center text-rose-500 shadow-sm border border-rose-100/30">
-                        <UserX size={16} />
-                    </div>
-                    <span className="text-xs font-bold text-rose-600">회원탈퇴</span>
-                </button>
+                <div className="mt-5 text-center">
+                    <button
+                        onClick={openWithdraw}
+                        className="text-[13px] text-muted underline-offset-2 transition-colors hover:text-brand-error hover:underline"
+                    >
+                        회원 탈퇴
+                    </button>
+                </div>
             </div>
         </div>
     );
