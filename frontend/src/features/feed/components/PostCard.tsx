@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Bookmark, FolderOpen } from 'lucide-react';
 import type { Post } from '@/types';
-import { useCreateBookmark, useDeleteBookmark } from '@/features/saved/api/bookmarkApi';
-import { useQueryClient } from '@tanstack/react-query';
+import { cn } from '@/utils/cn';
+import { formatRelativeTime } from '@/utils/time';
+import { useBookmarkToggle } from '../hooks/useBookmarkToggle';
 import { FolderChangeOverlay } from './FolderChangeOverlay';
 
 interface PostCardProps {
@@ -11,93 +12,61 @@ interface PostCardProps {
 }
 
 export function PostCard({ post, onClick }: PostCardProps) {
-    const queryClient = useQueryClient();
-    const createBookmark = useCreateBookmark();
-    const deleteBookmark = useDeleteBookmark();
-
-    const [localSaved, setLocalSaved] = useState(post.bookmarkId != null);
+    const { saved, toggle } = useBookmarkToggle(post);
     const [isFolderOverlayOpen, setIsFolderOverlayOpen] = useState(false);
 
-    useEffect(() => {
-        setLocalSaved(post.bookmarkId != null);
-    }, [post.bookmarkId]);
-
-    const handleToggleSave = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        
-        if (localSaved) {
-            setLocalSaved(false);
-            if (post.bookmarkId) {
-                deleteBookmark.mutate(post.bookmarkId, {
-                    onSuccess: () => {
-                        queryClient.invalidateQueries({ queryKey: ['feed'] });
-                        queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
-                    },
-                    onError: () => setLocalSaved(true)
-                });
-            }
-        } else {
-            setLocalSaved(true);
-            createBookmark.mutate(String(post.id), {
-                onSuccess: () => {
-                    queryClient.invalidateQueries({ queryKey: ['feed'] });
-                    queryClient.invalidateQueries({ queryKey: ['bookmarks'] });
-                },
-                onError: () => setLocalSaved(false)
-            });
-        }
-    };
-
     return (
-        <div
+        <article
             id={`post-${post.id}`}
             onClick={() => onClick(post)}
-            className={`bg-white/40 backdrop-blur-xl rounded-[24px] border border-white/60 p-4 shadow-sm active:scale-[0.98] transition-all cursor-pointer hover:bg-white/60`}
+            className="group cursor-pointer border-b border-card-border py-[18px]"
         >
-            <div className="flex items-start gap-4">
-                <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                        <img src={post.logo} alt="" className="w-5 h-5 object-contain shadow-sm rounded" />
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">
-                                {post.company}
-                            </span>
-                        </div>
-                    </div>
-                    <h4 className="text-[14px] font-bold text-slate-800 leading-snug mb-1">
-                        {post.title}
-                    </h4>
-                    <p className="text-[11px] text-slate-500 line-clamp-1 font-medium">
-                        {post.excerpt}
-                    </p>
-                </div>
-                <div className="flex flex-col gap-2 shrink-0">
-                    {localSaved && (
+            <div className="mb-[7px] flex items-center justify-between gap-3">
+                <span className="truncate font-mono text-[11px] tracking-[0.4px] text-slate">
+                    {post.company}
+                </span>
+                <div className="flex shrink-0 items-center gap-1">
+                    <span className="text-[12px] text-muted">{formatRelativeTime(post.date)}</span>
+                    {saved && (
                         <button
+                            type="button"
+                            aria-label="폴더 변경"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setIsFolderOverlayOpen(true);
                             }}
-                            className="p-2.5 rounded-2xl transition-all border text-slate-500 bg-white border-slate-100 shadow-sm hover:bg-slate-50 active:scale-95"
+                            className="ml-1 flex h-7 w-7 items-center justify-center rounded-full text-muted transition-colors hover:bg-soft-stone hover:text-ink"
                         >
-                            <FolderOpen size={18} strokeWidth={2.5} />
+                            <FolderOpen size={15} strokeWidth={1.8} />
                         </button>
                     )}
                     <button
-                        onClick={handleToggleSave}
-                        className={`p-2.5 rounded-2xl transition-all border active:scale-95 shadow-sm ${localSaved ? 'text-indigo-500 bg-white border-slate-100' : 'text-slate-300 bg-white/50 border-white/40'}`}
+                        type="button"
+                        aria-label={saved ? '북마크 해제' : '북마크'}
+                        onClick={toggle}
+                        className={cn(
+                            'flex h-7 w-7 items-center justify-center rounded-full transition-colors',
+                            saved ? 'text-coral' : 'text-muted hover:bg-soft-stone hover:text-ink'
+                        )}
                     >
-                        <Bookmark size={18} strokeWidth={2.5} fill={localSaved ? "currentColor" : "none"} />
+                        <Bookmark size={15} strokeWidth={1.8} fill={saved ? 'currentColor' : 'none'} />
                     </button>
                 </div>
             </div>
-            
+
+            <h3 className="mb-1.5 text-[17px] font-semibold leading-[1.3] tracking-[-0.2px] text-primary">
+                {post.title}
+            </h3>
+            <p className="line-clamp-2 text-[14px] leading-[1.5] text-[#616161]">
+                {post.excerpt}
+            </p>
+
             {isFolderOverlayOpen && (
-                <FolderChangeOverlay 
-                    post={post} 
-                    onClose={() => setIsFolderOverlayOpen(false)} 
+                <FolderChangeOverlay
+                    post={post}
+                    onClose={() => setIsFolderOverlayOpen(false)}
                 />
             )}
-        </div>
+        </article>
     );
 }

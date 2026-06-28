@@ -1,8 +1,8 @@
-import { useLocation, useOutlet } from 'react-router-dom';
+import { useLocation, useNavigate, useOutlet } from 'react-router-dom';
 import { useRef, useEffect } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
-import { Terminal, Search, Bell } from 'lucide-react';
+import { Search, Bell } from 'lucide-react';
 import { TracerTabBar } from '@/components/ui/TracerTabBar';
 import { useUiStore } from '@/stores/uiStore';
 
@@ -21,18 +21,15 @@ import { useNotifications, useNotificationSubscription } from '@/features/notifi
 
 export function AppLayout() {
     const location = useLocation();
+    const navigate = useNavigate();
     const outlet = useOutlet();
 
-    const blob1Ref = useRef<HTMLDivElement>(null);
-    const blob2Ref = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const mainWrapperRef = useRef<HTMLDivElement>(null);
     const progressBarRef = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLElement>(null);
 
     useGSAP(() => {
-        gsap.to(blob1Ref.current, { scale: 1.2, x: 50, y: 30, duration: 7.5, repeat: -1, yoyo: true, ease: "sine.inOut" });
-        gsap.to(blob2Ref.current, { scale: 1.3, x: -60, y: -40, duration: 9, repeat: -1, yoyo: true, ease: "sine.inOut" });
         gsap.fromTo(mainWrapperRef.current, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: 'power2.out' });
     }, []);
 
@@ -106,26 +103,15 @@ export function AppLayout() {
     }, [location.pathname, closeNotifications, closeSearch, closeFolderManagement, closeUpgradePlan, closeSourcesManagement, closePaymentMethod, closeSubscriptionManage, closePaymentHistory, closePasswordChange, closeWithdraw]);
 
     return (
-        <div className="h-[100dvh] overflow-hidden bg-slate-200 flex justify-center font-sans selection:bg-slate-300">
-            <div className="fixed inset-0 overflow-hidden pointer-events-none">
-                <div
-                    ref={blob1Ref}
-                    className="absolute top-[-15%] left-[-15%] w-[70%] h-[70%] bg-blue-200/20 blur-[120px] rounded-full"
-                />
-                <div
-                    ref={blob2Ref}
-                    className="absolute bottom-[-15%] right-[-15%] w-[70%] h-[70%] bg-slate-100/30 blur-[120px] rounded-full"
-                />
-            </div>
-
-            <div className="w-full max-w-[1200px] flex flex-col md:flex-row md:justify-center relative z-10 w-full">
+        <div className="flex h-[100dvh] justify-center overflow-hidden bg-soft-stone font-pretendard text-ink selection:bg-soft-stone">
+            <div className="relative z-10 flex w-full max-w-[1200px] flex-col md:flex-row md:justify-center">
                 <DesktopSidebar />
-                <div className="w-full max-w-[480px] md:max-w-[540px] lg:max-w-[600px] bg-white/30 backdrop-blur-[60px] h-[100dvh] shadow-[0_20px_50px_rgba(0,0,0,0.1)] flex flex-col relative overflow-hidden border-x border-white/40 shrink-0 mx-auto md:mx-0">
+                <div className="relative mx-auto flex h-[100dvh] w-full max-w-[480px] shrink-0 flex-col overflow-hidden border-x border-card-border bg-canvas md:mx-0 md:max-w-[540px] md:shadow-[0_20px_50px_rgba(0,0,0,0.06)] lg:max-w-[600px]">
                     <div ref={mainWrapperRef} className="flex-1 flex flex-col overflow-hidden relative opacity-0">
 
                         <div
                             ref={progressBarRef}
-                            className="fixed top-0 left-0 right-0 h-1 bg-slate-800/20 origin-left z-[60]"
+                            className="fixed top-0 left-0 right-0 h-0.5 bg-primary/15 origin-left z-[60]"
                             style={{ transform: 'scaleX(0)', maxWidth: 480, margin: '0 auto' }}
                         />
 
@@ -140,28 +126,32 @@ export function AppLayout() {
                         {isPasswordChangeMounted && <PasswordChangeOverlay />}
                         {isWithdrawMounted && <WithdrawOverlay />}
 
-                        <header className="md:hidden sticky top-0 bg-white/40 backdrop-blur-3xl z-40 px-6 pt-5 pb-2 border-b border-white/30">
-                            <div className="flex items-center justify-between mb-1">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-7 h-7 bg-white/60 backdrop-blur-md rounded-lg flex items-center justify-center text-slate-800 shadow-sm border border-white/50">
-                                        <Terminal size={14} strokeWidth={2.5} />
-                                    </div>
-                                    <h1 className="text-base font-black tracking-tighter text-slate-900 uppercase">TechStack</h1>
-                                </div>
+                        <header className="md:hidden sticky top-0 z-40 border-b border-card-border bg-canvas/95 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+18px)] backdrop-blur-xl">
+                            <div className="flex items-center justify-between">
+                                <button
+                                    onClick={() => navigate('/home')}
+                                    className="flex items-center gap-[7px]"
+                                    aria-label="tracer 홈"
+                                >
+                                    <span className="h-[15px] w-[15px] rounded-[4px] bg-deep-green" />
+                                    <span className="font-display text-[20px] font-medium tracking-[-0.3px] text-primary">tracer</span>
+                                </button>
                                 <div className="flex items-center gap-1.5">
                                     <button
                                         onClick={openSearch}
-                                        className="p-2 bg-white/40 backdrop-blur-md rounded-full text-slate-600 border border-white/50 shadow-sm active:scale-90 transition-transform"
+                                        aria-label="검색"
+                                        className="flex h-[38px] w-[38px] items-center justify-center rounded-full text-ink transition-colors hover:bg-soft-stone active:bg-soft-stone"
                                     >
-                                        <Search size={16} />
+                                        <Search size={19} strokeWidth={1.7} />
                                     </button>
                                     <button
                                         onClick={openNotifications}
-                                        className="relative p-2 bg-white/40 backdrop-blur-md rounded-full text-slate-600 border border-white/50 shadow-sm active:scale-90 transition-transform"
+                                        aria-label="알림"
+                                        className="relative flex h-[38px] w-[38px] items-center justify-center rounded-full text-ink transition-colors hover:bg-soft-stone active:bg-soft-stone"
                                     >
-                                        <Bell size={16} />
+                                        <Bell size={19} strokeWidth={1.7} />
                                         {unreadCount > 0 && (
-                                            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-rose-500 rounded-full border-2 border-white"></span>
+                                            <span className="absolute right-[9px] top-[9px] h-[7px] w-[7px] rounded-full border-[1.5px] border-canvas bg-coral" />
                                         )}
                                     </button>
                                 </div>
