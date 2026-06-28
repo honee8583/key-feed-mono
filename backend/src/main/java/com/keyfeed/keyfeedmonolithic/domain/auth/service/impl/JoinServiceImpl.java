@@ -4,6 +4,7 @@ import com.keyfeed.keyfeedmonolithic.domain.auth.dto.EmailVerificationConfirmReq
 import com.keyfeed.keyfeedmonolithic.domain.auth.dto.EmailVerificationConfirmResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.auth.dto.JoinRequestDto;
 import com.keyfeed.keyfeedmonolithic.domain.auth.entity.EmailPurpose;
+import com.keyfeed.keyfeedmonolithic.domain.auth.entity.EmailVerifyStatus;
 import com.keyfeed.keyfeedmonolithic.domain.auth.entity.User;
 import com.keyfeed.keyfeedmonolithic.domain.auth.exception.UserAlreadyExistsException;
 import com.keyfeed.keyfeedmonolithic.domain.auth.repository.UserRepository;
@@ -32,7 +33,7 @@ public class JoinServiceImpl implements JoinService {
     public void join(JoinRequestDto joinRequestDto) {
         userRepository.findByEmail(joinRequestDto.getEmail())
                 .ifPresent(existingUser -> {
-                    if (emailVerificationService.isVerified(joinRequestDto.getEmail(), EmailPurpose.SIGNUP)) {
+                    if (existingUser.isEmailVerified()) {
                         throw new UserAlreadyExistsException();
                     }
                     userRepository.delete(existingUser);
@@ -49,10 +50,17 @@ public class JoinServiceImpl implements JoinService {
 
     @Override
     public EmailVerificationConfirmResponseDto verifyEmailCode(EmailVerificationConfirmRequestDto emailVerificationConfirmRequestDto) {
-        return emailVerificationService.verifyCode(
-                emailVerificationConfirmRequestDto.getEmail(),
+        String email = emailVerificationConfirmRequestDto.getEmail();
+        EmailVerificationConfirmResponseDto response = emailVerificationService.verifyCode(
+                email,
                 emailVerificationConfirmRequestDto.getCode(),
                 EmailPurpose.SIGNUP
         );
+
+        if (response.getStatus() == EmailVerifyStatus.VERIFIED) {
+            userRepository.findByEmail(email).ifPresent(User::verifyEmail);
+        }
+
+        return response;
     }
 }

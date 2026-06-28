@@ -5,10 +5,14 @@ import com.keyfeed.keyfeedmonolithic.domain.auth.dto.PasswordResetConfirmRequest
 import com.keyfeed.keyfeedmonolithic.domain.auth.dto.PasswordResetRequestDto;
 import com.keyfeed.keyfeedmonolithic.domain.auth.dto.PasswordResetVerifyRequestDto;
 import com.keyfeed.keyfeedmonolithic.domain.auth.entity.EmailPurpose;
+import com.keyfeed.keyfeedmonolithic.domain.auth.entity.EmailVerifyStatus;
+import com.keyfeed.keyfeedmonolithic.domain.auth.entity.PasswordResetAudit;
+import com.keyfeed.keyfeedmonolithic.domain.auth.entity.PasswordResetAuditType;
 import com.keyfeed.keyfeedmonolithic.domain.auth.entity.User;
 import com.keyfeed.keyfeedmonolithic.domain.auth.exception.EmailVerificationRequiredException;
 import com.keyfeed.keyfeedmonolithic.domain.auth.exception.PasswordMismatchException;
 import com.keyfeed.keyfeedmonolithic.domain.auth.exception.SamePasswordException;
+import com.keyfeed.keyfeedmonolithic.domain.auth.repository.PasswordResetAuditRepository;
 import com.keyfeed.keyfeedmonolithic.domain.auth.repository.UserRepository;
 import com.keyfeed.keyfeedmonolithic.domain.auth.service.EmailVerificationService;
 import com.keyfeed.keyfeedmonolithic.domain.auth.service.PasswordResetService;
@@ -29,6 +33,7 @@ public class PasswordResetServiceImpl implements PasswordResetService {
 
     private final UserRepository userRepository;
     private final EmailVerificationService emailVerificationService;
+    private final PasswordResetAuditRepository passwordResetAuditRepository;
     private final BCryptPasswordEncoder passwordEncoder;
 
     @Override
@@ -44,11 +49,18 @@ public class PasswordResetServiceImpl implements PasswordResetService {
 
     @Override
     public EmailVerificationConfirmResponseDto verifyCode(PasswordResetVerifyRequestDto requestDto) {
-        return emailVerificationService.verifyCode(
+        EmailVerificationConfirmResponseDto response = emailVerificationService.verifyCode(
                 requestDto.getEmail(),
                 requestDto.getCode(),
                 EmailPurpose.RESET
         );
+
+        if (response.getStatus() == EmailVerifyStatus.VERIFIED) {
+            passwordResetAuditRepository.save(
+                    PasswordResetAudit.of(requestDto.getEmail(), PasswordResetAuditType.CODE_VERIFIED));
+        }
+
+        return response;
     }
 
     @Override
@@ -81,6 +93,9 @@ public class PasswordResetServiceImpl implements PasswordResetService {
 
         // 인증 레코드 삭제
         emailVerificationService.deleteVerification(email, EmailPurpose.RESET);
+
+        // 감사 이력 보존
+        passwordResetAuditRepository.save(PasswordResetAudit.of(email, PasswordResetAuditType.PASSWORD_RESET));
 
         log.info("비밀번호 재설정 완료: {}", email);
     }

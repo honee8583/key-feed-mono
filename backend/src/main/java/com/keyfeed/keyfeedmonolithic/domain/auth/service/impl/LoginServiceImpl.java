@@ -1,13 +1,11 @@
 package com.keyfeed.keyfeedmonolithic.domain.auth.service.impl;
 
 import com.keyfeed.keyfeedmonolithic.domain.auth.dto.*;
-import com.keyfeed.keyfeedmonolithic.domain.auth.entity.EmailPurpose;
 import com.keyfeed.keyfeedmonolithic.domain.auth.entity.Role;
 import com.keyfeed.keyfeedmonolithic.domain.auth.entity.User;
 import com.keyfeed.keyfeedmonolithic.domain.auth.exception.EmailVerificationRequiredException;
 import com.keyfeed.keyfeedmonolithic.domain.auth.exception.InvalidPasswordException;
 import com.keyfeed.keyfeedmonolithic.domain.auth.repository.UserRepository;
-import com.keyfeed.keyfeedmonolithic.domain.auth.service.EmailVerificationService;
 import com.keyfeed.keyfeedmonolithic.domain.auth.service.LoginService;
 import com.keyfeed.keyfeedmonolithic.domain.auth.util.JwtUtil;
 import com.keyfeed.keyfeedmonolithic.global.error.exception.EntityNotFoundException;
@@ -24,7 +22,6 @@ public class LoginServiceImpl implements LoginService {
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
-    private final EmailVerificationService emailVerificationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -36,7 +33,7 @@ public class LoginServiceImpl implements LoginService {
             throw new InvalidPasswordException();
         }
 
-        if (!emailVerificationService.isVerified(user.getEmail(), EmailPurpose.SIGNUP)) {
+        if (!user.isEmailVerified()) {
             throw new EmailVerificationRequiredException();
         }
 
