@@ -2,8 +2,8 @@ import { useLocation, useNavigate, useOutlet } from 'react-router-dom';
 import { useRef, useEffect } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
-import { Search, Bell, Home, Compass, Bookmark, User } from 'lucide-react';
-import { TabButton } from '@/components/ui/TabButton';
+import { Search, Bell } from 'lucide-react';
+import { TracerTabBar } from '@/components/ui/TracerTabBar';
 import { useUiStore } from '@/stores/uiStore';
 
 import { SearchOverlay } from '@/features/search/components/SearchOverlay';
@@ -14,14 +14,15 @@ import { MySourcesOverlay } from '@/features/profile/pages/MySourcesOverlay';
 import { PaymentMethodManageOverlay } from '@/features/payment/pages/PaymentMethodManageOverlay';
 import { SubscriptionManageOverlay } from '@/features/payment/pages/SubscriptionManageOverlay';
 import { PaymentHistoryOverlay } from '@/features/payment/pages/PaymentHistoryOverlay';
+import { PasswordChangeOverlay } from '@/features/profile/pages/PasswordChangeOverlay';
+import { WithdrawOverlay } from '@/features/profile/pages/WithdrawOverlay';
 import { DesktopSidebar } from './DesktopSidebar';
 import { useNotifications, useNotificationSubscription } from '@/features/notifications/api/notificationApi';
 
 export function AppLayout() {
-    const navigate = useNavigate();
     const location = useLocation();
+    const navigate = useNavigate();
     const outlet = useOutlet();
-    const activeTab = location.pathname.replace('/', '') || 'home';
 
     const contentRef = useRef<HTMLDivElement>(null);
     const mainWrapperRef = useRef<HTMLDivElement>(null);
@@ -81,6 +82,10 @@ export function AppLayout() {
         closeSubscriptionManage,
         isPaymentHistoryMounted,
         closePaymentHistory,
+        isPasswordChangeMounted,
+        closePasswordChange,
+        isWithdrawMounted,
+        closeWithdraw,
     } = useUiStore();
 
     // 탭 이동(라우트 변경) 시 오버레이 창 닫기
@@ -93,7 +98,9 @@ export function AppLayout() {
         closePaymentMethod();
         closeSubscriptionManage();
         closePaymentHistory();
-    }, [location.pathname, closeNotifications, closeSearch, closeFolderManagement, closeUpgradePlan, closeSourcesManagement, closePaymentMethod, closeSubscriptionManage, closePaymentHistory]);
+        closePasswordChange();
+        closeWithdraw();
+    }, [location.pathname, closeNotifications, closeSearch, closeFolderManagement, closeUpgradePlan, closeSourcesManagement, closePaymentMethod, closeSubscriptionManage, closePaymentHistory, closePasswordChange, closeWithdraw]);
 
     return (
         <div className="flex h-[100dvh] justify-center overflow-hidden bg-soft-stone font-pretendard text-ink selection:bg-soft-stone">
@@ -116,6 +123,8 @@ export function AppLayout() {
                         {isPaymentMethodMounted && <PaymentMethodManageOverlay />}
                         {isSubscriptionMounted && <SubscriptionManageOverlay />}
                         {isPaymentHistoryMounted && <PaymentHistoryOverlay />}
+                        {isPasswordChangeMounted && <PasswordChangeOverlay />}
+                        {isWithdrawMounted && <WithdrawOverlay />}
 
                         <header className="md:hidden sticky top-0 z-40 border-b border-card-border bg-canvas/95 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+18px)] backdrop-blur-xl">
                             <div className="flex items-center justify-between">
@@ -155,12 +164,7 @@ export function AppLayout() {
                             </div>
                         </main>
 
-                        <nav className="md:hidden absolute bottom-0 left-0 right-0 z-[60] flex border-t border-card-border bg-canvas/95 px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+12px)] backdrop-blur-xl">
-                            <TabButton active={activeTab === 'home' || activeTab === ''} onClick={() => navigate('/home')} icon={<Home size={23} strokeWidth={1.6} />} label="홈" />
-                            <TabButton active={activeTab === 'explore'} onClick={() => navigate('/explore')} icon={<Compass size={23} strokeWidth={1.6} />} label="탐색" />
-                            <TabButton active={activeTab === 'saved'} onClick={() => navigate('/saved')} icon={<Bookmark size={23} strokeWidth={1.6} />} label="저장" />
-                            <TabButton active={activeTab === 'profile'} onClick={() => navigate('/profile')} icon={<User size={23} strokeWidth={1.6} />} label="MY" />
-                        </nav>
+                        <TracerTabBar />
                     </div>
                 </div>
             </div>

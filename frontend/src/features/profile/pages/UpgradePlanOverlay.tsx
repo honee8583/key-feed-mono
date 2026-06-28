@@ -2,7 +2,7 @@ import { useRef, useEffect, useState } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { loadTossPayments } from '@tosspayments/tosspayments-sdk';
-import { ArrowLeft, Bookmark, Folder, Star, Zap, CheckCircle2, Crown, Sparkles, Tag, Loader2 } from 'lucide-react';
+import { ArrowLeft, Bookmark, Folder, CheckCircle2, Crown, Sparkles, Tag, Loader2 } from 'lucide-react';
 import { useUiStore } from '@/stores/uiStore';
 import { getCustomerKey, usePaymentMethods } from '@/features/payment/api/paymentApi';
 import { useStartSubscription } from '@/features/payment/api/subscriptionApi';
