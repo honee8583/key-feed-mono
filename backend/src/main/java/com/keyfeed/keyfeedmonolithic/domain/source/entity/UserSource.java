@@ -28,9 +28,6 @@ public class UserSource extends BaseTimeEntity {
     @JoinColumn(name = "source_id", nullable = false)
     private Source source;
 
-    @Column(name = "user_defined_name", nullable = false, length = 100)
-    private String userDefinedName;
-
     @Column(name = "receive_feed", nullable = false)
     @Builder.Default
     private Boolean receiveFeed = true;

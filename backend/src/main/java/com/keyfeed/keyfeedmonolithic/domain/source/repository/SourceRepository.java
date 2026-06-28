@@ -18,7 +18,7 @@ public interface SourceRepository extends JpaRepository<Source, Long> {
     List<Source> findSourcesToCrawl(@Param("targetTime") LocalDateTime targetTime);
 
     @Query("""
-            SELECT s.id as sourceId, s.url as url, COUNT(DISTINCT us.user.id) as subscriberCount
+            SELECT s.id as sourceId, s.name as name, s.url as url, COUNT(DISTINCT us.user.id) as subscriberCount
             FROM Source s
             JOIN UserSource us ON s.id = us.source.id
             JOIN Keyword k ON us.user.id = k.user.id
@@ -28,7 +28,7 @@ public interface SourceRepository extends JpaRepository<Source, Long> {
                 SELECT 1 FROM UserSource us2
                 WHERE us2.source.id = s.id AND us2.user.id = :userId
             )
-            GROUP BY s.id, s.url
+            GROUP BY s.id, s.name, s.url
             ORDER BY subscriberCount DESC
             """)
     List<RecommendedSourceProjection> findRecommendedSourcesByKeywords(
@@ -38,6 +38,7 @@ public interface SourceRepository extends JpaRepository<Source, Long> {
 
     interface RecommendedSourceProjection {
         Long getSourceId();
+        String getName();
         String getUrl();
         Long getSubscriberCount();
     }

@@ -1,12 +1,10 @@
 package com.keyfeed.keyfeedmonolithic.domain.source.controller;
 
 import com.keyfeed.keyfeedmonolithic.domain.source.dto.RecommendedSourceResponseDto;
-import com.keyfeed.keyfeedmonolithic.domain.source.dto.SourceRequestDto;
 import com.keyfeed.keyfeedmonolithic.domain.source.dto.SourceResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.source.service.SourceService;
 import com.keyfeed.keyfeedmonolithic.global.message.SuccessMessage;
 import com.keyfeed.keyfeedmonolithic.global.response.HttpResponse;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -37,14 +35,6 @@ public class SourceController {
         List<SourceResponseDto> sources = sourceService.searchMySources(userId, keyword);
         return ResponseEntity.ok()
                 .body(new HttpResponse(HttpStatus.OK, SuccessMessage.READ_SUCCESS.getMessage(), sources));
-    }
-
-    @PostMapping
-    public ResponseEntity<?> addSource(@AuthenticationPrincipal Long userId,
-                                       @Valid @RequestBody SourceRequestDto request) {
-        SourceResponseDto source = sourceService.addSource(userId, request);
-        return ResponseEntity.ok()
-                .body(new HttpResponse(HttpStatus.OK, SuccessMessage.WRITE_SUCCESS.getMessage(), source));
     }
 
     @DeleteMapping("/my/{userSourceId}")

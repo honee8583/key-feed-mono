@@ -39,11 +39,11 @@ class FeedServiceImplTest {
     @Mock
     private ContentRepository contentRepository;
 
-    private SourceResponseDto buildSource(Long sourceId, String userDefinedName, String logoUrl) {
+    private SourceResponseDto buildSource(Long sourceId, String name, String logoUrl) {
         return SourceResponseDto.builder()
                 .sourceId(sourceId)
                 .userSourceId(sourceId)
-                .userDefinedName(userDefinedName)
+                .name(name)
                 .logoUrl(logoUrl)
                 .receiveFeed(true)
                 .build();
