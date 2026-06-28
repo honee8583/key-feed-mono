@@ -11,6 +11,21 @@ import type { Notification } from '@/types';
 
 type Segment = 'all' | 'unread';
 
+/**
+ * 알림 생성 시각(ms)을 구한다. SSE로 실시간 수신한 알림은 createdAt이
+ * 비어 있을 수 있는데(백엔드 푸시 페이로드에 미포함), 이 경우 NaN으로 처리해
+ * "방금 도착 = 지금"으로 간주한다. `new Date(null)`은 1970이 되므로 falsy 검사가 필요하다.
+ */
+function parseCreatedAt(createdAt: string | null | undefined): number {
+    if (!createdAt) return NaN;
+    return new Date(createdAt).getTime();
+}
+
+/** createdAt이 없거나 유효하지 않으면(=방금 수신) "방금 전"으로 표시한다. */
+function timeLabel(createdAt: string): string {
+    return Number.isNaN(parseCreatedAt(createdAt)) ? '방금 전' : formatRelativeTime(createdAt);
+}
+
 /** 알림 생성 시각을 기준으로 오늘 / 이번 주 / 그 이전으로 묶는다. */
 function groupByPeriod(items: Notification[], now: Date) {
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -21,8 +36,8 @@ function groupByPeriod(items: Notification[], now: Date) {
     const earlier: Notification[] = [];
 
     for (const n of items) {
-        const t = new Date(n.createdAt).getTime();
-        if (Number.isNaN(t) || t >= startOfToday) today.push(n);
+        const t = parseCreatedAt(n.createdAt);
+        if (Number.isNaN(t) || t >= startOfToday) today.push(n); // 무효/미수신 시각은 오늘로
         else if (t >= startOfWeek) week.push(n);
         else earlier.push(n);
     }
@@ -152,7 +167,7 @@ export function NotificationOverlay() {
                                                     {n.title}
                                                 </span>
                                                 <span className="shrink-0 text-[12px] text-muted">
-                                                    {formatRelativeTime(n.createdAt)}
+                                                    {timeLabel(n.createdAt)}
                                                 </span>
                                             </div>
                                             <p
