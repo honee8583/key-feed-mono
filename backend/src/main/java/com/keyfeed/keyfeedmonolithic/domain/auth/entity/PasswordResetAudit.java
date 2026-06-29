@@ -4,10 +4,6 @@ import com.keyfeed.keyfeedmonolithic.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
-/**
- * 비밀번호 재설정 등 민감 인증 작업의 이력. 인증 코드 저장소가 Redis로 전환되며
- * 휘발되는 인증 이력을 영구 보존하기 위한 감사(audit) 레코드.
- */
 @Getter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

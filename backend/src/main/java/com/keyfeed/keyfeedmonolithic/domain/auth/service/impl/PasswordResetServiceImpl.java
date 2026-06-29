@@ -94,7 +94,6 @@ public class PasswordResetServiceImpl implements PasswordResetService {
         // 인증 레코드 삭제
         emailVerificationService.deleteVerification(email, EmailPurpose.RESET);
 
-        // 감사 이력 보존
         passwordResetAuditRepository.save(PasswordResetAudit.of(email, PasswordResetAuditType.PASSWORD_RESET));
 
         log.info("비밀번호 재설정 완료: {}", email);
