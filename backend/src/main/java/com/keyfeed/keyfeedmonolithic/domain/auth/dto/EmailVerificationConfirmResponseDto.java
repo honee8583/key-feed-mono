@@ -1,6 +1,5 @@
 package com.keyfeed.keyfeedmonolithic.domain.auth.dto;
 
-import com.keyfeed.keyfeedmonolithic.domain.auth.entity.EmailVerification;
 import com.keyfeed.keyfeedmonolithic.domain.auth.entity.EmailVerifyStatus;
 import lombok.*;
 
@@ -17,12 +16,17 @@ public class EmailVerificationConfirmResponseDto {
     private LocalDateTime retryAt;     // 잠금 기간
     private LocalDateTime expiresAt;   // 만료 기간
 
-    public static EmailVerificationConfirmResponseDto from(EmailVerification emailVerification) {
+    public static EmailVerificationConfirmResponseDto verified() {
         return EmailVerificationConfirmResponseDto.builder()
-                .status(emailVerification.getStatus())
-                .attempts(emailVerification.getAttemptCount())
-                .retryAt(emailVerification.getLockedUntil())
-                .expiresAt(emailVerification.getExpiresAt())
+                .status(EmailVerifyStatus.VERIFIED)
+                .build();
+    }
+
+    public static EmailVerificationConfirmResponseDto pending(int attempts, LocalDateTime expiresAt) {
+        return EmailVerificationConfirmResponseDto.builder()
+                .status(EmailVerifyStatus.PENDING)
+                .attempts(attempts)
+                .expiresAt(expiresAt)
                 .build();
     }
 }

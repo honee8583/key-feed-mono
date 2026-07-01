@@ -30,6 +30,7 @@ public enum ErrorMessage {
     EMAIL_VERIFICATION_ATTEMPT_LIMIT_EXCEEDED("지정된 인증 횟수가 초과되었습니다."),
     EMAIL_SEND_FAILED("이메일 전송에 실패하였습니다."),
     EMAIL_ALREADY_VERIFIED("이미 인증된 이메일입니다."),
+    EMAIL_VERIFICATION_COOLDOWN("잠시 후 다시 시도해주세요."),
 
     // keyword
     KEYWORD_LIMIT_EXCEEDED("키워드 등록 한도를 넘었습니다. 구독 시 최대 10개까지 이용하실 수 있습니다."),

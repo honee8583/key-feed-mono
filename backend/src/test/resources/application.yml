@@ -38,6 +38,8 @@ spring:
     max_attempts: 5
     lock_minutes: 15
     expire_minutes: 5
+    cooldown_seconds: 60
+    done_minutes: 10
 
 jasypt:
   encryptor:
