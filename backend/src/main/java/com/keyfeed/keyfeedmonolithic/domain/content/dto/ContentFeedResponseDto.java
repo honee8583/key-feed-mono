@@ -28,9 +28,9 @@ public class ContentFeedResponseDto {
     private Long bookmarkId; // bookmark
 
     public static ContentFeedResponseDto from(Content content, SourceResponseDto source) {
-        // 1. 소스 이름 결정 (사용자 정의 이름 -> 컨텐츠 기본 이름 순)
+        // 1. 소스 이름 결정 (Source.name -> 컨텐츠 기본 이름 순)
         String sourceName = Optional.ofNullable(source)
-                .map(SourceResponseDto::getUserDefinedName)
+                .map(SourceResponseDto::getName)
                 .filter(StringUtils::hasText)
                 .orElse(content.getSourceName());
 

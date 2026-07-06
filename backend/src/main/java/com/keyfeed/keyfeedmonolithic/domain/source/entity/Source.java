@@ -21,6 +21,9 @@ public class Source extends BaseTimeEntity {
     @Column(name = "source_id")
     private Long id;
 
+    @Column(nullable = false, length = 100)
+    private String name;
+
     @Column(nullable = false, unique = true, length = 767)
     private String url;
 
