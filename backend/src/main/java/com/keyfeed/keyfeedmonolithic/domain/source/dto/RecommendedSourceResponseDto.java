@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class RecommendedSourceResponseDto {
     private Long sourceId;
+    private String name;
     private String url;
     private Long subscriberCount;
 }

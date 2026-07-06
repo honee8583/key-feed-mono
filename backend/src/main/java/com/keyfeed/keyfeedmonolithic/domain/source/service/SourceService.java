@@ -1,7 +1,6 @@
 package com.keyfeed.keyfeedmonolithic.domain.source.service;
 
 import com.keyfeed.keyfeedmonolithic.domain.source.dto.RecommendedSourceResponseDto;
-import com.keyfeed.keyfeedmonolithic.domain.source.dto.SourceRequestDto;
 import com.keyfeed.keyfeedmonolithic.domain.source.dto.SourceResponseDto;
 import org.springframework.data.domain.Pageable;
 
@@ -12,8 +11,6 @@ public interface SourceService {
     List<SourceResponseDto> getSourcesByUser(Long userId);
 
     List<SourceResponseDto> getActiveSourcesByUser(Long userId);
-
-    SourceResponseDto addSource(Long userId, SourceRequestDto request);
 
     void removeUserSource(Long userId, Long userSourceId);
 
