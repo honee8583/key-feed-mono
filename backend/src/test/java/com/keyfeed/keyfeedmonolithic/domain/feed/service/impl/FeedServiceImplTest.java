@@ -1,5 +1,6 @@
 package com.keyfeed.keyfeedmonolithic.domain.feed.service.impl;
 
+import com.keyfeed.keyfeedmonolithic.domain.bookmark.dto.BookmarkFeedInfoDto;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.service.BookmarkService;
 import com.keyfeed.keyfeedmonolithic.domain.content.dto.ContentFeedResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.content.entity.Content;
@@ -83,7 +84,12 @@ class FeedServiceImplTest {
 
         given(sourceService.getSourcesByUser(1L)).willReturn(sources);
         given(contentRepository.findFirstPage(anyList(), any(Pageable.class))).willReturn(contents);
-        given(bookmarkService.getBookmarkMap(anyLong(), anyList())).willReturn(Map.of("10", 99L));
+        BookmarkFeedInfoDto info = BookmarkFeedInfoDto.builder()
+                .bookmarkId(99L)
+                .folderId(7L)
+                .folderName("기술")
+                .build();
+        given(bookmarkService.getBookmarkInfoMap(anyLong(), anyList())).willReturn(Map.of("10", info));
 
         CommonPageResponse<ContentFeedResponseDto> result = feedService.getPersonalizedFeeds(1L, null, 10, null);
 
@@ -91,6 +97,8 @@ class FeedServiceImplTest {
         assertThat(result.getContent().get(0).getSourceName()).isEqualTo("MyBlog");
         assertThat(result.getContent().get(0).getSourceLogoUrl()).isEqualTo("http://logo.com/1");
         assertThat(result.getContent().get(0).getBookmarkId()).isEqualTo(99L);
+        assertThat(result.getContent().get(0).getFolderId()).isEqualTo(7L);
+        assertThat(result.getContent().get(0).getFolderName()).isEqualTo("기술");
         assertThat(result.isHasNext()).isFalse();
         then(sourceService).should(times(1)).getSourcesByUser(1L);
     }
@@ -103,7 +111,7 @@ class FeedServiceImplTest {
 
         given(sourceService.getSourcesByUser(1L)).willReturn(sources);
         given(contentRepository.findNextPage(anyList(), eq(10L), any(Pageable.class))).willReturn(contents);
-        given(bookmarkService.getBookmarkMap(anyLong(), anyList())).willReturn(Collections.emptyMap());
+        given(bookmarkService.getBookmarkInfoMap(anyLong(), anyList())).willReturn(Collections.emptyMap());
 
         CommonPageResponse<ContentFeedResponseDto> result = feedService.getPersonalizedFeeds(1L, 10L, 10, null);
 
@@ -120,7 +128,7 @@ class FeedServiceImplTest {
 
         given(sourceService.getSourcesByUser(1L)).willReturn(sources);
         given(contentRepository.searchFirstPage(anyList(), eq("spring"), any(Pageable.class))).willReturn(contents);
-        given(bookmarkService.getBookmarkMap(anyLong(), anyList())).willReturn(Collections.emptyMap());
+        given(bookmarkService.getBookmarkInfoMap(anyLong(), anyList())).willReturn(Collections.emptyMap());
 
         CommonPageResponse<ContentFeedResponseDto> result = feedService.getPersonalizedFeeds(1L, null, 10, "spring");
 
@@ -136,7 +144,7 @@ class FeedServiceImplTest {
 
         given(sourceService.getSourcesByUser(1L)).willReturn(sources);
         given(contentRepository.searchNextPage(anyList(), eq(20L), eq("java"), any(Pageable.class))).willReturn(contents);
-        given(bookmarkService.getBookmarkMap(anyLong(), anyList())).willReturn(Collections.emptyMap());
+        given(bookmarkService.getBookmarkInfoMap(anyLong(), anyList())).willReturn(Collections.emptyMap());
 
         CommonPageResponse<ContentFeedResponseDto> result = feedService.getPersonalizedFeeds(1L, 20L, 10, "java");
 
@@ -157,7 +165,7 @@ class FeedServiceImplTest {
 
         given(sourceService.getSourcesByUser(1L)).willReturn(sources);
         given(contentRepository.findFirstPage(anyList(), any(Pageable.class))).willReturn(contents);
-        given(bookmarkService.getBookmarkMap(anyLong(), anyList())).willReturn(Collections.emptyMap());
+        given(bookmarkService.getBookmarkInfoMap(anyLong(), anyList())).willReturn(Collections.emptyMap());
 
         CommonPageResponse<ContentFeedResponseDto> result = feedService.getPersonalizedFeeds(1L, null, 2, null);
 
@@ -187,7 +195,7 @@ class FeedServiceImplTest {
 
         given(sourceService.getSourcesByUser(1L)).willReturn(sources);
         given(contentRepository.findFirstPage(anyList(), any(Pageable.class))).willReturn(contents);
-        given(bookmarkService.getBookmarkMap(anyLong(), anyList())).willThrow(new RuntimeException("북마크 서비스 오류"));
+        given(bookmarkService.getBookmarkInfoMap(anyLong(), anyList())).willThrow(new RuntimeException("북마크 서비스 오류"));
 
         CommonPageResponse<ContentFeedResponseDto> result = feedService.getPersonalizedFeeds(1L, null, 10, null);
 
@@ -203,7 +211,7 @@ class FeedServiceImplTest {
 
         given(sourceService.getSourcesByUser(1L)).willReturn(sources);
         given(contentRepository.findFirstPage(anyList(), any(Pageable.class))).willReturn(contents);
-        given(bookmarkService.getBookmarkMap(anyLong(), anyList())).willReturn(Collections.emptyMap());
+        given(bookmarkService.getBookmarkInfoMap(anyLong(), anyList())).willReturn(Collections.emptyMap());
 
         CommonPageResponse<ContentFeedResponseDto> result = feedService.getPersonalizedFeeds(1L, null, 10, null);
 
@@ -218,7 +226,7 @@ class FeedServiceImplTest {
 
         given(sourceService.getSourcesByUser(1L)).willReturn(sources);
         given(contentRepository.findFirstPage(anyList(), any(Pageable.class))).willReturn(contents);
-        given(bookmarkService.getBookmarkMap(anyLong(), anyList())).willReturn(Collections.emptyMap());
+        given(bookmarkService.getBookmarkInfoMap(anyLong(), anyList())).willReturn(Collections.emptyMap());
 
         feedService.getPersonalizedFeeds(1L, null, 10, null);
 

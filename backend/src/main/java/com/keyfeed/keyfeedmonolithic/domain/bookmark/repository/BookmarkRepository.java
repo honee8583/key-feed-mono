@@ -62,6 +62,13 @@ public interface BookmarkRepository extends JpaRepository<Bookmark, Long> {
     // contentId에 해당하는 북마크 목록 조회
     List<Bookmark> findAllByUserIdAndContentIdIn(Long userId, List<String> contentIds);
 
+    // contentId에 해당하는 북마크 목록 조회 (폴더 정보 포함 - 피드용)
+    @Query("SELECT b FROM Bookmark b " +
+            "LEFT JOIN FETCH b.bookmarkFolder " +
+            "WHERE b.user.id = :userId AND b.contentId IN :contentIds")
+    List<Bookmark> findAllWithFolderByUserIdAndContentIdIn(@Param("userId") Long userId,
+                                                           @Param("contentIds") List<String> contentIds);
+
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Bookmark b SET b.bookmarkFolder = null WHERE b.bookmarkFolder.id = :folderId")
     void updateFolderToNull(@Param("folderId") Long folderId);
