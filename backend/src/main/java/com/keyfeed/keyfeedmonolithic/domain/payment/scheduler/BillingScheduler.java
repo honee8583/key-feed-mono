@@ -65,9 +65,7 @@ public class BillingScheduler {
 
     /**
      * READY 상태 복구 로직
-     * 결제 플로우 도중 서버가 중단된 경우 READY 상태로 방치된 결제 이력을 복구한다.
-     * 10분 간격으로 실행되며, 10분 이상 READY 상태로 남아있는 건을 Toss API로 상태 확인 후 동기화한다.
-     * 건별로 독립 트랜잭션(PaymentHistoryWriter)으로 처리되어 일부 실패가 다른 건에 영향을 주지 않는다.
+     * 10분 이상 READY 상태로 남아있는 건을 Toss API로 상태 확인 후 동기화
      */
     @Scheduled(cron = "0 */10 * * * *")
     public void recoverReadyPayments() {
@@ -171,26 +169,21 @@ public class BillingScheduler {
 
     private void recoverHistory(PaymentHistory history) {
         try {
-            // 1. Toss API로 실제 결제 상태 조회
             TossPaymentQueryResponse queryResponse = tossPaymentsClient.getPaymentByOrderId(history.getOrderId());
 
             if ("DONE".equals(queryResponse.getStatus())) {
-                // 2-1. 실제로 결제 성공 → 독립 트랜잭션으로 DONE 동기화
                 paymentHistoryWriter.updateDone(
                         history, queryResponse.getPaymentKey(), parseApprovedAt(queryResponse.getApprovedAt()));
                 log.info("[BillingScheduler] READY 복구(DONE) - orderId: {}", history.getOrderId());
             } else {
-                // 2-2. 결제 미완료 → 독립 트랜잭션으로 FAILED 처리
                 paymentHistoryWriter.updateFailed(history, "결제 미완료 상태로 방치된 결제 건");
                 log.info("[BillingScheduler] READY 복구(FAILED) - orderId: {}", history.getOrderId());
             }
         } catch (Exception e) {
-            // 3. 개별 건 복구 실패 시 다음 건 처리를 위해 예외를 삼키고 가능한 경우 FAILED로 마킹
             log.error("[BillingScheduler] READY 복구 실패 - orderId: {}, error: {}", history.getOrderId(), e.getMessage());
             try {
                 paymentHistoryWriter.updateFailed(history, "복구 중 오류 발생: " + e.getMessage());
             } catch (Exception markFailedException) {
-                // FAILED 마킹 자체가 실패해도 다음 건 처리를 위해 로그만 기록
                 log.error("[BillingScheduler] READY 복구 FAILED 마킹 실패 - orderId: {}, error: {}",
                         history.getOrderId(), markFailedException.getMessage());
             }

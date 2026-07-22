@@ -381,7 +381,6 @@ class BillingSchedulerTest {
                 .given(paymentHistoryWriter).updateFailed(eq(history1), anyString());
 
         // when & then
-        // history1: updateFailed 예외 → 복구 catch에서 updateFailed 재시도 → 또 예외 → 로그만 남기고 진행 (총 2회 호출)
         assertThatCode(() -> billingScheduler.recoverReadyPayments()).doesNotThrowAnyException();
         then(paymentHistoryWriter).should(times(2)).updateFailed(eq(history1), anyString());
         then(paymentHistoryWriter).should().updateDone(
