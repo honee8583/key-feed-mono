@@ -8,13 +8,12 @@ import com.keyfeed.keyfeedmonolithic.domain.payment.exception.PaymentFailedExcep
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.PaymentHistoryRepository;
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.SubscriptionRepository;
 import com.keyfeed.keyfeedmonolithic.domain.payment.service.BillingExecutor;
+import com.keyfeed.keyfeedmonolithic.domain.payment.writer.PaymentHistoryWriter;
 import com.keyfeed.keyfeedmonolithic.domain.payment.writer.SubscriptionWriter;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.TossPaymentsClient;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossPaymentQueryResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +38,7 @@ public class BillingScheduler {
     private final NotificationService notificationService;
     private final BillingExecutor billingExecutor;
     private final SubscriptionWriter subscriptionWriter;
+    private final PaymentHistoryWriter paymentHistoryWriter;
 
     /**
      * 자동 결제 스케줄러 — 매일 오전 10시 실행
@@ -64,19 +64,12 @@ public class BillingScheduler {
     }
 
     /**
-     * 서버 재시작 시 복구 로직
-     */
-    @EventListener(ApplicationReadyEvent.class)
-    public void onApplicationReady() {
-        recoverReadyPayments();
-        recoverPendingSubscriptions();
-    }
-
-    /**
      * READY 상태 복구 로직
-     * 10분 이상 READY 상태로 남아있는 건을 Toss API로 상태 확인 후 동기화
+     * 결제 플로우 도중 서버가 중단된 경우 READY 상태로 방치된 결제 이력을 복구한다.
+     * 10분 간격으로 실행되며, 10분 이상 READY 상태로 남아있는 건을 Toss API로 상태 확인 후 동기화한다.
+     * 건별로 독립 트랜잭션(PaymentHistoryWriter)으로 처리되어 일부 실패가 다른 건에 영향을 주지 않는다.
      */
-    @Transactional
+    @Scheduled(cron = "0 */10 * * * *")
     public void recoverReadyPayments() {
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(READY_STALE_MINUTES);
 
@@ -98,7 +91,7 @@ public class BillingScheduler {
     /**
      * PENDING 상태 구독 복구 로직
      * 결제 플로우 도중 서버가 중단된 경우 PENDING 상태로 방치된 구독을 복구한다.
-     * 매 시간 실행되며 서버 시작 시에도 onApplicationReady()를 통해 호출된다.
+     * 매 시간 실행된다.
      */
     @Scheduled(cron = "0 0 * * * *")
     public void recoverPendingSubscriptions() {
@@ -178,21 +171,29 @@ public class BillingScheduler {
 
     private void recoverHistory(PaymentHistory history) {
         try {
+            // 1. Toss API로 실제 결제 상태 조회
             TossPaymentQueryResponse queryResponse = tossPaymentsClient.getPaymentByOrderId(history.getOrderId());
 
             if ("DONE".equals(queryResponse.getStatus())) {
-                // 실제로 결제 성공 → DONE으로 동기화
-                history.markDone(queryResponse.getPaymentKey(), parseApprovedAt(queryResponse.getApprovedAt()));
+                // 2-1. 실제로 결제 성공 → 독립 트랜잭션으로 DONE 동기화
+                paymentHistoryWriter.updateDone(
+                        history, queryResponse.getPaymentKey(), parseApprovedAt(queryResponse.getApprovedAt()));
                 log.info("[BillingScheduler] READY 복구(DONE) - orderId: {}", history.getOrderId());
             } else {
-                // 결제 미완료 → FAILED 처리
-                history.markFailed("서버 재시작으로 인한 결제 미완료");
+                // 2-2. 결제 미완료 → 독립 트랜잭션으로 FAILED 처리
+                paymentHistoryWriter.updateFailed(history, "결제 미완료 상태로 방치된 결제 건");
                 log.info("[BillingScheduler] READY 복구(FAILED) - orderId: {}", history.getOrderId());
             }
         } catch (Exception e) {
-            // Toss 조회 실패 시 안전하게 FAILED 처리
-            history.markFailed("복구 중 Toss API 조회 실패: " + e.getMessage());
+            // 3. 개별 건 복구 실패 시 다음 건 처리를 위해 예외를 삼키고 가능한 경우 FAILED로 마킹
             log.error("[BillingScheduler] READY 복구 실패 - orderId: {}, error: {}", history.getOrderId(), e.getMessage());
+            try {
+                paymentHistoryWriter.updateFailed(history, "복구 중 오류 발생: " + e.getMessage());
+            } catch (Exception markFailedException) {
+                // FAILED 마킹 자체가 실패해도 다음 건 처리를 위해 로그만 기록
+                log.error("[BillingScheduler] READY 복구 FAILED 마킹 실패 - orderId: {}, error: {}",
+                        history.getOrderId(), markFailedException.getMessage());
+            }
         }
     }
 
