@@ -9,6 +9,8 @@ import com.keyfeed.keyfeedmonolithic.domain.payment.exception.PaymentFailedExcep
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.PaymentHistoryRepository;
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.SubscriptionRepository;
 import com.keyfeed.keyfeedmonolithic.domain.payment.service.BillingExecutor;
+import com.keyfeed.keyfeedmonolithic.domain.payment.writer.PaymentHistoryWriter;
+import com.keyfeed.keyfeedmonolithic.domain.payment.writer.SubscriptionWriter;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.TossPaymentsClient;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossPaymentQueryResponse;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +47,12 @@ class BillingSchedulerTest {
 
     @Mock
     private BillingExecutor billingExecutor;
+
+    @Mock
+    private SubscriptionWriter subscriptionWriter;
+
+    @Mock
+    private PaymentHistoryWriter paymentHistoryWriter;
 
     // ===== executeScheduledPayments =====
 
@@ -196,7 +204,7 @@ class BillingSchedulerTest {
     // ===== recoverReadyPayments =====
 
     @Test
-    @DisplayName("READY 복구 - Toss에서 DONE이면 history DONE으로 동기화")
+    @DisplayName("READY 복구 - Toss에서 DONE이면 updateDone으로 동기화 (paymentKey, approvedAt 전달)")
     void READY_복구_DONE_동기화() {
         // given
         PaymentHistory history = makeReadyHistory();
@@ -211,12 +219,49 @@ class BillingSchedulerTest {
         billingScheduler.recoverReadyPayments();
 
         // then
-        assertThat(history.getStatus()).isEqualTo(PaymentHistoryStatus.DONE);
-        assertThat(history.getPaymentKey()).isEqualTo("recover-pay-key");
+        then(paymentHistoryWriter).should().updateDone(
+                history, "recover-pay-key", LocalDateTime.of(2026, 4, 5, 10, 0));
+        then(paymentHistoryWriter).should(never()).updateFailed(any(), anyString());
     }
 
     @Test
-    @DisplayName("READY 복구 - Toss에서 DONE이 아니면 FAILED 처리")
+    @DisplayName("READY 복구 - approvedAt이 null이면 updateDone에 null 전달")
+    void READY_복구_DONE_approvedAt_null() {
+        // given
+        PaymentHistory history = makeReadyHistory();
+        TossPaymentQueryResponse queryResponse = makeQueryResponse("DONE", null);
+
+        given(paymentHistoryRepository.findByStatusAndCreatedAtBefore(
+                eq(PaymentHistoryStatus.READY), any(LocalDateTime.class)))
+                .willReturn(List.of(history));
+        given(tossPaymentsClient.getPaymentByOrderId(history.getOrderId())).willReturn(queryResponse);
+
+        // when
+        billingScheduler.recoverReadyPayments();
+
+        // then
+        then(paymentHistoryWriter).should().updateDone(eq(history), eq("recover-pay-key"), isNull());
+    }
+
+    @Test
+    @DisplayName("READY 복구 - approvedAt 파싱 실패 시 updateDone에 null 전달 (예외 전파 안 함)")
+    void READY_복구_DONE_approvedAt_파싱실패() {
+        // given
+        PaymentHistory history = makeReadyHistory();
+        TossPaymentQueryResponse queryResponse = makeQueryResponse("DONE", "잘못된-날짜-형식");
+
+        given(paymentHistoryRepository.findByStatusAndCreatedAtBefore(
+                eq(PaymentHistoryStatus.READY), any(LocalDateTime.class)))
+                .willReturn(List.of(history));
+        given(tossPaymentsClient.getPaymentByOrderId(history.getOrderId())).willReturn(queryResponse);
+
+        // when & then
+        assertThatCode(() -> billingScheduler.recoverReadyPayments()).doesNotThrowAnyException();
+        then(paymentHistoryWriter).should().updateDone(eq(history), eq("recover-pay-key"), isNull());
+    }
+
+    @Test
+    @DisplayName("READY 복구 - Toss에서 DONE이 아니면 updateFailed 처리")
     void READY_복구_미완료_FAILED처리() {
         // given
         PaymentHistory history = makeReadyHistory();
@@ -231,11 +276,12 @@ class BillingSchedulerTest {
         billingScheduler.recoverReadyPayments();
 
         // then
-        assertThat(history.getStatus()).isEqualTo(PaymentHistoryStatus.FAILED);
+        then(paymentHistoryWriter).should().updateFailed(history, "결제 미완료 상태로 방치된 결제 건");
+        then(paymentHistoryWriter).should(never()).updateDone(any(), anyString(), any());
     }
 
     @Test
-    @DisplayName("READY 복구 - Toss API 조회 실패 시 FAILED 처리 (예외 전파 안 함)")
+    @DisplayName("READY 복구 - Toss API 조회 실패 시 updateFailed 처리 (예외 전파 안 함)")
     void READY_복구_Toss조회실패_FAILED처리() {
         // given
         PaymentHistory history = makeReadyHistory();
@@ -248,11 +294,12 @@ class BillingSchedulerTest {
 
         // when & then
         assertThatCode(() -> billingScheduler.recoverReadyPayments()).doesNotThrowAnyException();
-        assertThat(history.getStatus()).isEqualTo(PaymentHistoryStatus.FAILED);
+        then(paymentHistoryWriter).should().updateFailed(history, "복구 중 오류 발생: Toss API 오류");
+        then(paymentHistoryWriter).should(never()).updateDone(any(), anyString(), any());
     }
 
     @Test
-    @DisplayName("READY 복구 - 복구 대상 없으면 Toss API 호출 안 함")
+    @DisplayName("READY 복구 - 복구 대상 없으면 Toss API/Writer 호출 안 함")
     void READY_복구_대상없음() {
         // given
         given(paymentHistoryRepository.findByStatusAndCreatedAtBefore(
@@ -264,6 +311,81 @@ class BillingSchedulerTest {
 
         // then
         then(tossPaymentsClient).should(never()).getPaymentByOrderId(anyString());
+        then(paymentHistoryWriter).should(never()).updateDone(any(), anyString(), any());
+        then(paymentHistoryWriter).should(never()).updateFailed(any(), anyString());
+    }
+
+    @Test
+    @DisplayName("READY 복구 다건 - 첫 건 Toss 조회 실패해도 나머지 건 계속 처리")
+    void READY_복구_다건_첫건_Toss조회실패_나머지처리() {
+        // given
+        PaymentHistory history1 = makeReadyHistory(1L, "order-ready-001");
+        PaymentHistory history2 = makeReadyHistory(2L, "order-ready-002");
+        TossPaymentQueryResponse doneResponse = makeQueryResponse("DONE");
+
+        given(paymentHistoryRepository.findByStatusAndCreatedAtBefore(
+                eq(PaymentHistoryStatus.READY), any(LocalDateTime.class)))
+                .willReturn(List.of(history1, history2));
+        given(tossPaymentsClient.getPaymentByOrderId("order-ready-001"))
+                .willThrow(new RuntimeException("Toss API 오류"));
+        given(tossPaymentsClient.getPaymentByOrderId("order-ready-002")).willReturn(doneResponse);
+
+        // when
+        billingScheduler.recoverReadyPayments();
+
+        // then
+        then(tossPaymentsClient).should(times(2)).getPaymentByOrderId(anyString());
+        then(paymentHistoryWriter).should().updateFailed(history1, "복구 중 오류 발생: Toss API 오류");
+        then(paymentHistoryWriter).should().updateDone(
+                history2, "recover-pay-key", LocalDateTime.of(2026, 4, 5, 10, 0));
+    }
+
+    @Test
+    @DisplayName("READY 복구 다건 - 첫 건 updateDone 예외 시 updateFailed로 마킹하고 나머지 건 계속 처리")
+    void READY_복구_다건_첫건_updateDone예외_나머지처리() {
+        // given
+        PaymentHistory history1 = makeReadyHistory(1L, "order-ready-001");
+        PaymentHistory history2 = makeReadyHistory(2L, "order-ready-002");
+        TossPaymentQueryResponse doneResponse = makeQueryResponse("DONE");
+
+        given(paymentHistoryRepository.findByStatusAndCreatedAtBefore(
+                eq(PaymentHistoryStatus.READY), any(LocalDateTime.class)))
+                .willReturn(List.of(history1, history2));
+        given(tossPaymentsClient.getPaymentByOrderId("order-ready-001")).willReturn(doneResponse);
+        given(tossPaymentsClient.getPaymentByOrderId("order-ready-002")).willReturn(doneResponse);
+        willThrow(new RuntimeException("DB 오류"))
+                .given(paymentHistoryWriter).updateDone(eq(history1), anyString(), any());
+
+        // when & then
+        assertThatCode(() -> billingScheduler.recoverReadyPayments()).doesNotThrowAnyException();
+        then(paymentHistoryWriter).should().updateFailed(history1, "복구 중 오류 발생: DB 오류");
+        then(paymentHistoryWriter).should().updateDone(
+                history2, "recover-pay-key", LocalDateTime.of(2026, 4, 5, 10, 0));
+    }
+
+    @Test
+    @DisplayName("READY 복구 다건 - updateFailed 자체가 예외를 던져도 예외 없이 나머지 건 계속 처리")
+    void READY_복구_다건_updateFailed예외_전파안함() {
+        // given
+        PaymentHistory history1 = makeReadyHistory(1L, "order-ready-001");
+        PaymentHistory history2 = makeReadyHistory(2L, "order-ready-002");
+        TossPaymentQueryResponse abortedResponse = makeQueryResponse("ABORTED");
+        TossPaymentQueryResponse doneResponse = makeQueryResponse("DONE");
+
+        given(paymentHistoryRepository.findByStatusAndCreatedAtBefore(
+                eq(PaymentHistoryStatus.READY), any(LocalDateTime.class)))
+                .willReturn(List.of(history1, history2));
+        given(tossPaymentsClient.getPaymentByOrderId("order-ready-001")).willReturn(abortedResponse);
+        given(tossPaymentsClient.getPaymentByOrderId("order-ready-002")).willReturn(doneResponse);
+        willThrow(new RuntimeException("DB 오류"))
+                .given(paymentHistoryWriter).updateFailed(eq(history1), anyString());
+
+        // when & then
+        // history1: updateFailed 예외 → 복구 catch에서 updateFailed 재시도 → 또 예외 → 로그만 남기고 진행 (총 2회 호출)
+        assertThatCode(() -> billingScheduler.recoverReadyPayments()).doesNotThrowAnyException();
+        then(paymentHistoryWriter).should(times(2)).updateFailed(eq(history1), anyString());
+        then(paymentHistoryWriter).should().updateDone(
+                history2, "recover-pay-key", LocalDateTime.of(2026, 4, 5, 10, 0));
     }
 
     // ===== helpers =====
@@ -324,10 +446,14 @@ class BillingSchedulerTest {
     }
 
     private PaymentHistory makeReadyHistory() {
+        return makeReadyHistory(1L, "order-ready-001");
+    }
+
+    private PaymentHistory makeReadyHistory(Long id, String orderId) {
         try {
             PaymentHistory history = new PaymentHistory();
-            setField(history, "id", 1L);
-            setField(history, "orderId", "order-ready-001");
+            setField(history, "id", id);
+            setField(history, "orderId", orderId);
             setField(history, "status", PaymentHistoryStatus.READY);
             setField(history, "amount", 9900);
             return history;
@@ -337,12 +463,16 @@ class BillingSchedulerTest {
     }
 
     private TossPaymentQueryResponse makeQueryResponse(String status) {
+        return makeQueryResponse(status, "DONE".equals(status) ? "2026-04-05T10:00:00+09:00" : null);
+    }
+
+    private TossPaymentQueryResponse makeQueryResponse(String status, String approvedAt) {
         try {
             TossPaymentQueryResponse response = new TossPaymentQueryResponse();
             setField(response, "orderId", "order-ready-001");
             setField(response, "paymentKey", "recover-pay-key");
             setField(response, "status", status);
-            setField(response, "approvedAt", "DONE".equals(status) ? "2026-04-05T10:00:00+09:00" : null);
+            setField(response, "approvedAt", approvedAt);
             return response;
         } catch (Exception e) {
             throw new RuntimeException(e);
