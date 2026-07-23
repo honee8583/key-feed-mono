@@ -153,6 +153,9 @@ public abstract class CustomException extends RuntimeException {
 - 토스 시크릿 키는 `application.yml` 에 Jasypt `ENC(...)` 로 암호화되어 있습니다.
 - `toss.api.duration` Micrometer 타이머로 호출 지표를 수집합니다.
 
+### 주석
+- 코드에 주석을 작성하지 않습니다.
+
 ---
 
 ## 로컬 개발 환경
