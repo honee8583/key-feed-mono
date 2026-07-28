@@ -77,6 +77,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/payment-methods/**").authenticated()
                 .requestMatchers("/api/subscriptions/**").authenticated()
                 .requestMatchers("/api/payment-history/**").authenticated()
+                .requestMatchers("/api/search/**").authenticated()
                 .requestMatchers("/internal/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated()

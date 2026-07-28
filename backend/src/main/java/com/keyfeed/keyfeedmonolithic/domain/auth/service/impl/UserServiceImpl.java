@@ -11,13 +11,16 @@ import com.keyfeed.keyfeedmonolithic.domain.auth.service.UserService;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.repository.BookmarkFolderRepository;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.repository.BookmarkRepository;
 import com.keyfeed.keyfeedmonolithic.domain.keyword.repository.KeywordRepository;
+import com.keyfeed.keyfeedmonolithic.domain.search.service.RecentSearchService;
 import com.keyfeed.keyfeedmonolithic.domain.source.repository.UserSourceRepository;
 import com.keyfeed.keyfeedmonolithic.global.error.exception.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
@@ -29,6 +32,7 @@ public class UserServiceImpl implements UserService {
     private final UserSourceRepository userSourceRepository;
     private final BookmarkFolderRepository bookmarkFolderRepository;
     private final BookmarkRepository bookmarkRepository;
+    private final RecentSearchService recentSearchService;
 
     @Override
     public void changePassword(Long userId, PasswordChangeRequestDto requestDto) {
@@ -61,8 +65,17 @@ public class UserServiceImpl implements UserService {
         bookmarkFolderRepository.deleteAllByUserId(userId);
         userSourceRepository.deleteAllByUserId(userId);
         keywordRepository.deleteAllByUserId(userId);
+        deleteRecentSearches(userId);
 
         userRepository.delete(user);
+    }
+
+    private void deleteRecentSearches(Long userId) {
+        try {
+            recentSearchService.deleteAll(userId);
+        } catch (Exception e) {
+            log.warn("탈퇴 회원 최근 검색어 삭제 실패 - TTL 만료로 정리됩니다. userId={}", userId, e);
+        }
     }
 
     private User resolveUser(Long userId) {
