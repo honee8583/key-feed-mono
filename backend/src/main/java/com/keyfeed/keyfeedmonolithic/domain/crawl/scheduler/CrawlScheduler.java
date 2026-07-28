@@ -5,6 +5,7 @@ import com.keyfeed.keyfeedmonolithic.domain.source.entity.Source;
 import com.keyfeed.keyfeedmonolithic.domain.source.repository.SourceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StopWatch;
@@ -25,6 +26,7 @@ public class CrawlScheduler {
 
     // 30분마다 실행
     @Scheduled(fixedDelay = 1800000)
+    @SchedulerLock(name = "CrawlScheduler_scheduleCrawling", lockAtMostFor = "PT35M", lockAtLeastFor = "PT1M")
     public void scheduleCrawling() {
         StopWatch stopWatch = new StopWatch();
 

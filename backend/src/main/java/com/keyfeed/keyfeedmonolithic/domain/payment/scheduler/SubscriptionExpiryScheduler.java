@@ -6,6 +6,7 @@ import com.keyfeed.keyfeedmonolithic.domain.payment.entity.SubscriptionStatus;
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.SubscriptionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -30,6 +31,7 @@ public class SubscriptionExpiryScheduler {
      * status = CANCELED AND expired_at <= 현재 인 구독을 INACTIVE로 전환
      */
     @Scheduled(cron = "0 0 0 * * *")
+    @SchedulerLock(name = "SubscriptionExpiryScheduler_expireSubscriptions", lockAtMostFor = "PT1H", lockAtLeastFor = "PT1M")
     @Transactional
     public void expireSubscriptions() {
         log.info("[구독 만료 스케줄러] 시작 - 대상 조회");
