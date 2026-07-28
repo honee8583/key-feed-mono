@@ -2,7 +2,9 @@ package com.keyfeed.keyfeedmonolithic.domain.bookmark.service.impl;
 
 import com.keyfeed.keyfeedmonolithic.domain.auth.entity.User;
 import com.keyfeed.keyfeedmonolithic.domain.auth.repository.UserRepository;
+import com.keyfeed.keyfeedmonolithic.domain.bookmark.dto.BookmarkFeedInfoDto;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.dto.BookmarkFolderRequestDto;
+import com.keyfeed.keyfeedmonolithic.domain.bookmark.entity.Bookmark;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.entity.BookmarkFolder;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.exception.FolderLimitExceededException;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.repository.BookmarkFolderRepository;
@@ -21,7 +23,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -291,5 +295,75 @@ class BookmarkServiceImplTest {
                 .isInstanceOf(EntityNotFoundException.class);
 
         then(folderRepository).should(never()).save(any(BookmarkFolder.class));
+    }
+
+    @Test
+    @DisplayName("폴더에 속한 북마크는 북마크 정보 맵에 폴더 정보가 포함된다")
+    void 북마크_정보_맵_폴더_정보_포함() {
+        // given
+        Long userId = 1L;
+        User user = makeUser(userId);
+        BookmarkFolder folder = BookmarkFolder.builder()
+                .id(7L)
+                .user(user)
+                .name("기술")
+                .icon("📁")
+                .color("#FFFFFF")
+                .build();
+        Bookmark bookmark = Bookmark.builder()
+                .id(99L)
+                .user(user)
+                .contentId("10")
+                .bookmarkFolder(folder)
+                .build();
+
+        given(bookmarkRepository.findAllWithFolderByUserIdAndContentIdIn(userId, List.of("10")))
+                .willReturn(List.of(bookmark));
+
+        // when
+        Map<String, BookmarkFeedInfoDto> result = bookmarkService.getBookmarkInfoMap(userId, List.of("10"));
+
+        // then
+        assertThat(result).hasSize(1);
+        BookmarkFeedInfoDto info = result.get("10");
+        assertThat(info.getBookmarkId()).isEqualTo(99L);
+        assertThat(info.getFolderId()).isEqualTo(7L);
+        assertThat(info.getFolderName()).isEqualTo("기술");
+    }
+
+    @Test
+    @DisplayName("미분류 북마크는 북마크 정보 맵의 폴더 정보가 null이다")
+    void 북마크_정보_맵_미분류_폴더_null() {
+        // given
+        Long userId = 1L;
+        Bookmark bookmark = Bookmark.builder()
+                .id(100L)
+                .user(makeUser(userId))
+                .contentId("20")
+                .build();
+
+        given(bookmarkRepository.findAllWithFolderByUserIdAndContentIdIn(userId, List.of("20")))
+                .willReturn(List.of(bookmark));
+
+        // when
+        Map<String, BookmarkFeedInfoDto> result = bookmarkService.getBookmarkInfoMap(userId, List.of("20"));
+
+        // then
+        assertThat(result).hasSize(1);
+        BookmarkFeedInfoDto info = result.get("20");
+        assertThat(info.getBookmarkId()).isEqualTo(100L);
+        assertThat(info.getFolderId()).isNull();
+        assertThat(info.getFolderName()).isNull();
+    }
+
+    @Test
+    @DisplayName("contentIds가 비어있으면 조회 없이 빈 맵을 반환한다")
+    void 북마크_정보_맵_빈_contentIds() {
+        // when
+        Map<String, BookmarkFeedInfoDto> result = bookmarkService.getBookmarkInfoMap(1L, Collections.emptyList());
+
+        // then
+        assertThat(result).isEmpty();
+        then(bookmarkRepository).should(never()).findAllWithFolderByUserIdAndContentIdIn(any(), any());
     }
 }
