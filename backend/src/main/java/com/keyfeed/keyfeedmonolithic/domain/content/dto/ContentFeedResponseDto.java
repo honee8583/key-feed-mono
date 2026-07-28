@@ -26,6 +26,8 @@ public class ContentFeedResponseDto {
     private LocalDateTime publishedAt; // content
 
     private Long bookmarkId; // bookmark
+    private Long folderId;
+    private String folderName;
 
     public static ContentFeedResponseDto from(Content content, SourceResponseDto source) {
         // 1. 소스 이름 결정 (Source.name -> 컨텐츠 기본 이름 순)

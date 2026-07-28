@@ -1,5 +1,6 @@
 package com.keyfeed.keyfeedmonolithic.domain.feed.service.impl;
 
+import com.keyfeed.keyfeedmonolithic.domain.bookmark.dto.BookmarkFeedInfoDto;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.service.BookmarkService;
 import com.keyfeed.keyfeedmonolithic.domain.content.dto.ContentFeedResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.content.entity.Content;
@@ -133,9 +134,16 @@ public class FeedServiceImpl implements FeedService {
                 .collect(Collectors.toList());
 
         try {
-            Map<String, Long> bookmarkMap = bookmarkService.getBookmarkMap(userId, contentIds);
+            Map<String, BookmarkFeedInfoDto> bookmarkMap = bookmarkService.getBookmarkInfoMap(userId, contentIds);
             if (bookmarkMap != null) {
-                feeds.forEach(feed -> feed.setBookmarkId(bookmarkMap.get(feed.getContentId())));
+                feeds.forEach(feed -> {
+                    BookmarkFeedInfoDto info = bookmarkMap.get(feed.getContentId());
+                    if (info != null) {
+                        feed.setBookmarkId(info.getBookmarkId());
+                        feed.setFolderId(info.getFolderId());
+                        feed.setFolderName(info.getFolderName());
+                    }
+                });
             }
         } catch (Exception e) {
             log.warn("북마크 상태 조회 실패 - 북마크 없이 피드를 반환합니다. userId={}", userId, e);

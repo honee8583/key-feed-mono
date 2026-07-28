@@ -1,5 +1,6 @@
 package com.keyfeed.keyfeedmonolithic.domain.bookmark.service;
 
+import com.keyfeed.keyfeedmonolithic.domain.bookmark.dto.BookmarkFeedInfoDto;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.dto.BookmarkFolderRequestDto;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.dto.BookmarkFolderResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.dto.BookmarkRequestDto;
@@ -29,6 +30,6 @@ public interface BookmarkService {
 
     List<BookmarkFolderResponseDto> getFolders(Long userId);
 
-    Map<String, Long> getBookmarkMap(Long userId, List<String> contentIds);
+    Map<String, BookmarkFeedInfoDto> getBookmarkInfoMap(Long userId, List<String> contentIds);
 
 }

@@ -2,6 +2,7 @@ package com.keyfeed.keyfeedmonolithic.domain.bookmark.service.impl;
 
 import com.keyfeed.keyfeedmonolithic.domain.auth.entity.User;
 import com.keyfeed.keyfeedmonolithic.domain.auth.repository.UserRepository;
+import com.keyfeed.keyfeedmonolithic.domain.bookmark.dto.BookmarkFeedInfoDto;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.dto.BookmarkFolderRequestDto;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.dto.BookmarkFolderResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.bookmark.dto.BookmarkRequestDto;
@@ -187,14 +188,14 @@ public class BookmarkServiceImpl implements BookmarkService {
     }
 
     @Override
-    public Map<String, Long> getBookmarkMap(Long userId, List<String> contentIds) {
+    public Map<String, BookmarkFeedInfoDto> getBookmarkInfoMap(Long userId, List<String> contentIds) {
         if (contentIds == null || contentIds.isEmpty()) {
             return Collections.emptyMap();
         }
 
-        return bookmarkRepository.findAllByUserIdAndContentIdIn(userId, contentIds)
+        return bookmarkRepository.findAllWithFolderByUserIdAndContentIdIn(userId, contentIds)
                 .stream()
-                .collect(Collectors.toMap(Bookmark::getContentId, Bookmark::getId));
+                .collect(Collectors.toMap(Bookmark::getContentId, BookmarkFeedInfoDto::from));
     }
 
     private Map<String, ContentFeedResponseDto> fetchContentMap(List<Bookmark> bookmarks) {
