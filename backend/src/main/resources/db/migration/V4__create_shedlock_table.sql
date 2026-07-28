@@ -1,5 +1,4 @@
 -- 무중단 배포 환경에서 스케줄러 중복 실행 방지를 위한 ShedLock 락 테이블
--- 이슈 #55
 
 create table shedlock (
     name varchar(64) not null,
