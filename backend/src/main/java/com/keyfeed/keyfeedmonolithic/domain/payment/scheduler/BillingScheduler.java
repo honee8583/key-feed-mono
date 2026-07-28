@@ -14,6 +14,7 @@ import com.keyfeed.keyfeedmonolithic.global.client.toss.TossPaymentsClient;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossPaymentQueryResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,8 +44,8 @@ public class BillingScheduler {
     /**
      * 자동 결제 스케줄러 — 매일 오전 10시 실행
      */
-    // TODO 서버 인스턴스가 늘어날 경우 중복 결제 위험성
     @Scheduled(cron = "0 0 10 * * *")
+    @SchedulerLock(name = "BillingScheduler_executeScheduledPayments", lockAtMostFor = "PT1H", lockAtLeastFor = "PT1M")
     @Transactional // TODO 단일 트랜잭션으로 분리
     public void executeScheduledPayments() {
         log.info("[BillingScheduler] 자동 결제 시작");
@@ -68,6 +69,7 @@ public class BillingScheduler {
      * 10분 이상 READY 상태로 남아있는 건을 Toss API로 상태 확인 후 동기화
      */
     @Scheduled(cron = "0 */10 * * * *")
+    @SchedulerLock(name = "BillingScheduler_recoverReadyPayments", lockAtMostFor = "PT9M", lockAtLeastFor = "PT1M")
     public void recoverReadyPayments() {
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(READY_STALE_MINUTES);
 
@@ -92,6 +94,7 @@ public class BillingScheduler {
      * 매 시간 실행된다.
      */
     @Scheduled(cron = "0 0 * * * *")
+    @SchedulerLock(name = "BillingScheduler_recoverPendingSubscriptions", lockAtMostFor = "PT30M", lockAtLeastFor = "PT1M")
     public void recoverPendingSubscriptions() {
         // 1. 결제 플로우 진행 중인 구독과 구분하기 위해 임계 시간(30분) 이전에 생성된 PENDING 구독만 조회
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(SubscriptionConstants.PENDING_STALE_MINUTES);

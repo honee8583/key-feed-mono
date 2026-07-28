@@ -22,6 +22,7 @@ key-feed-mono/
 - Jasypt (설정값 암호화)
 - Micrometer + Prometheus (메트릭 수집)
 - Rome + Jsoup (RSS 파싱 및 크롤링)
+- ShedLock (스케줄러 분산 락)
 
 ### Frontend
 - **React 19** / **TypeScript 5.9**
@@ -44,6 +45,7 @@ key-feed-mono/
 - **실시간 알림**: SSE 기반 새 콘텐츠 알림
 - **구독 결제**: 토스페이먼츠 빌링키 기반 자동결제 및 구독 관리 (10분 주기 배치로 미완료 결제 자동 복구)
 - **이메일 인증**: 회원가입 및 비밀번호 재설정 시 이메일 인증
+- **스케줄러 중복 실행 방지**: ShedLock 기반 DB 분산 락으로 Blue-Green 배포 중에도 결제/크롤링 배치가 단일 인스턴스에서만 실행
 
 ## 로컬 실행
 
