@@ -20,14 +20,14 @@ public class RecentSearchRedisRepository {
     private static final Duration TTL = Duration.ofDays(30);
 
     public void add(Long userId, String keyword) {
-        String key = key(userId);
+        String key = buildKey(userId);
         redisTemplate.opsForZSet().add(key, keyword, System.currentTimeMillis());
         redisTemplate.opsForZSet().removeRange(key, 0, -(MAX_COUNT + 1));
         redisTemplate.expire(key, TTL);
     }
 
     public List<String> findAll(Long userId) {
-        Set<String> keywords = redisTemplate.opsForZSet().reverseRange(key(userId), 0, MAX_COUNT - 1);
+        Set<String> keywords = redisTemplate.opsForZSet().reverseRange(buildKey(userId), 0, MAX_COUNT - 1);
         if (keywords == null) {
             return List.of();
         }
@@ -35,14 +35,14 @@ public class RecentSearchRedisRepository {
     }
 
     public void remove(Long userId, String keyword) {
-        redisTemplate.opsForZSet().remove(key(userId), keyword);
+        redisTemplate.opsForZSet().remove(buildKey(userId), keyword);
     }
 
     public void removeAll(Long userId) {
-        redisTemplate.delete(key(userId));
+        redisTemplate.delete(buildKey(userId));
     }
 
-    private String key(Long userId) {
+    private String buildKey(Long userId) {
         return KEY_PREFIX + userId;
     }
 }
