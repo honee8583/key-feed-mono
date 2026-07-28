@@ -5,6 +5,7 @@ import com.keyfeed.keyfeedmonolithic.domain.bookmark.service.BookmarkService;
 import com.keyfeed.keyfeedmonolithic.domain.content.dto.ContentFeedResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.content.entity.Content;
 import com.keyfeed.keyfeedmonolithic.domain.content.repository.ContentRepository;
+import com.keyfeed.keyfeedmonolithic.domain.search.service.RecentSearchService;
 import com.keyfeed.keyfeedmonolithic.domain.source.dto.SourceResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.source.service.SourceService;
 import com.keyfeed.keyfeedmonolithic.global.response.CommonPageResponse;
@@ -39,6 +40,9 @@ class FeedServiceImplTest {
 
     @Mock
     private ContentRepository contentRepository;
+
+    @Mock
+    private RecentSearchService recentSearchService;
 
     private SourceResponseDto buildSource(Long sourceId, String name, String logoUrl) {
         return SourceResponseDto.builder()
@@ -231,5 +235,86 @@ class FeedServiceImplTest {
         feedService.getPersonalizedFeeds(1L, null, 10, null);
 
         then(sourceService).should(times(1)).getSourcesByUser(1L);
+    }
+
+    @Test
+    @DisplayName("키워드 검색 첫 페이지 조회 시 최근 검색어를 저장한다")
+    void 키워드_검색_첫_페이지_시_최근_검색어_저장() {
+        List<SourceResponseDto> sources = List.of(buildSource(1L, null, null));
+        List<Content> contents = List.of(buildContent(7L, 1L, "Blog"));
+
+        given(sourceService.getSourcesByUser(1L)).willReturn(sources);
+        given(contentRepository.searchFirstPage(anyList(), eq("spring"), any(Pageable.class))).willReturn(contents);
+        given(bookmarkService.getBookmarkInfoMap(anyLong(), anyList())).willReturn(Collections.emptyMap());
+
+        feedService.getPersonalizedFeeds(1L, null, 10, "spring");
+
+        then(recentSearchService).should(times(1)).record(1L, "spring");
+    }
+
+    @Test
+    @DisplayName("키워드 검색 다음 페이지 조회 시에는 최근 검색어를 저장하지 않는다")
+    void 키워드_검색_다음_페이지_시_최근_검색어_저장_안함() {
+        List<SourceResponseDto> sources = List.of(buildSource(1L, null, null));
+        List<Content> contents = List.of(buildContent(3L, 1L, "Blog"));
+
+        given(sourceService.getSourcesByUser(1L)).willReturn(sources);
+        given(contentRepository.searchNextPage(anyList(), eq(20L), eq("java"), any(Pageable.class))).willReturn(contents);
+        given(bookmarkService.getBookmarkInfoMap(anyLong(), anyList())).willReturn(Collections.emptyMap());
+
+        feedService.getPersonalizedFeeds(1L, 20L, 10, "java");
+
+        then(recentSearchService).should(never()).record(anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("키워드가 없으면 최근 검색어를 저장하지 않는다")
+    void 키워드_없으면_최근_검색어_저장_안함() {
+        List<SourceResponseDto> sources = List.of(buildSource(1L, null, null));
+        List<Content> contents = List.of(buildContent(1L, 1L, "Blog"));
+
+        given(sourceService.getSourcesByUser(1L)).willReturn(sources);
+        given(contentRepository.findFirstPage(anyList(), any(Pageable.class))).willReturn(contents);
+        given(bookmarkService.getBookmarkInfoMap(anyLong(), anyList())).willReturn(Collections.emptyMap());
+
+        feedService.getPersonalizedFeeds(1L, null, 10, null);
+
+        then(recentSearchService).should(never()).record(anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("최근 검색어 저장이 실패해도 피드는 정상 반환된다")
+    void 최근_검색어_저장_실패해도_피드_정상_반환() {
+        List<SourceResponseDto> sources = List.of(buildSource(1L, null, null));
+        List<Content> contents = List.of(buildContent(7L, 1L, "Blog"));
+
+        willThrow(new RuntimeException("Redis 연결 오류")).given(recentSearchService).record(1L, "spring");
+        given(sourceService.getSourcesByUser(1L)).willReturn(sources);
+        given(contentRepository.searchFirstPage(anyList(), eq("spring"), any(Pageable.class))).willReturn(contents);
+        given(bookmarkService.getBookmarkInfoMap(anyLong(), anyList())).willReturn(Collections.emptyMap());
+
+        CommonPageResponse<ContentFeedResponseDto> result = feedService.getPersonalizedFeeds(1L, null, 10, "spring");
+
+        assertThat(result.getContent()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("오프셋 검색 첫 페이지 조회 시 최근 검색어를 저장한다")
+    void 오프셋_검색_첫_페이지_시_최근_검색어_저장() {
+        given(sourceService.getSourcesByUser(1L)).willReturn(Collections.emptyList());
+
+        feedService.getPersonalizedFeedsWithOffset(1L, 0, 10, "spring");
+
+        then(recentSearchService).should(times(1)).record(1L, "spring");
+    }
+
+    @Test
+    @DisplayName("오프셋 검색 두 번째 페이지 조회 시에는 최근 검색어를 저장하지 않는다")
+    void 오프셋_검색_두번째_페이지_시_최근_검색어_저장_안함() {
+        given(sourceService.getSourcesByUser(1L)).willReturn(Collections.emptyList());
+
+        feedService.getPersonalizedFeedsWithOffset(1L, 1, 10, "spring");
+
+        then(recentSearchService).should(never()).record(anyLong(), anyString());
     }
 }
