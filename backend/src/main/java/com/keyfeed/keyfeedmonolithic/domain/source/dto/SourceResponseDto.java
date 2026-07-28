@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 public class SourceResponseDto {
     private Long sourceId;
     private Long userSourceId;
-    private String userDefinedName;
+    private String name;
     private String url;
     private String logoUrl;
     private LocalDateTime lastCrawledAt;
@@ -21,7 +21,7 @@ public class SourceResponseDto {
         return SourceResponseDto.builder()
                 .sourceId(userSource.getSource().getId())
                 .userSourceId(userSource.getId())
-                .userDefinedName(userSource.getUserDefinedName())
+                .name(userSource.getSource().getName())
                 .url(userSource.getSource().getUrl())
                 .logoUrl(userSource.getSource().getLogoUrl())
                 .lastCrawledAt(userSource.getSource().getLastCrawledAt())

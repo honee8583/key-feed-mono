@@ -37,6 +37,9 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private boolean isSocial = false;
 
+    @Builder.Default
+    private boolean emailVerified = false;
+
     private String snsType;
 
     @Builder.Default
@@ -50,6 +53,10 @@ public class User extends BaseTimeEntity {
 
     public void updatePassword(String encodedPassword) {
         this.password = encodedPassword;
+    }
+
+    public void verifyEmail() {
+        this.emailVerified = true;
     }
 
     public void updateLastNotificationCheckedAt(LocalDateTime lastNotificationCheckedAt) {
