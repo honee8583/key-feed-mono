@@ -87,6 +87,9 @@ dependencies {
     implementation 'net.javacrumbs.shedlock:shedlock-spring:5.16.0'
     implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:5.16.0'
 
+    // docker compose
+    developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
+
     // wiremock
     testImplementation 'org.wiremock:wiremock-standalone:3.10.0'
 }

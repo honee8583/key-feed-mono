@@ -37,6 +37,7 @@ out/
 .vscode/
 
 application-local.yml
+.my.cnf
 
 ### Logs ###
 logs/
