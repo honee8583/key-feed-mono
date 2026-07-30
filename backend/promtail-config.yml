@@ -15,7 +15,7 @@ scrape_configs:
           - localhost
         labels:
           job: spring-boot
-          app: my-app           # 앱 이름 (원하는 이름으로 변경)
+          app: key-feed-backend # 앱 이름
           env: local            # 환경 (local, dev, prod 등)
           __path__: /var/log/spring/*.log  # 로그 파일 경로
     pipeline_stages:

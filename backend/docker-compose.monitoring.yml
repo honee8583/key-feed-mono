@@ -6,8 +6,8 @@ services:
       - "9090:9090" # 프로메테우스의 기본 포트번호
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml # 프로메테우스 설정 파일
-    networks:
-      - mysql-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   grafana:
     image: grafana/grafana:latest
@@ -52,15 +52,10 @@ services:
       - ./.my.cnf:/etc/mysqld_exporter/.my.cnf
     command:
       - "--config.my-cnf=/etc/mysqld_exporter/.my.cnf"
-    networks:
-      - mysql-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
 volumes:
   grafana-data:
   loki-data:
-
-# ✅ 추가
-networks:
-  mysql-network:
-    external: true  # 이미 존재하는 네트워크 사용
