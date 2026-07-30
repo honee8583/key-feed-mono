@@ -57,4 +57,26 @@ public class SubscriptionWriter {
         subscription.resume(nextBillingAt, paymentMethod);
         subscriptionRepository.save(subscription);
     }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void updateBillingSuccess(Subscription subscription) {
+        subscription.updateNextBillingAt(subscription.getNextBillingAt().plusMonths(1));
+        subscription.resetRetryCount();
+        subscriptionRepository.save(subscription);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void updateBillingFailure(Subscription subscription, int maxRetryCount) {
+        subscription.increaseRetryCount();
+        if (subscription.getRetryCount() >= maxRetryCount) {
+            subscription.pause();
+        }
+        subscriptionRepository.save(subscription);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void updateRefunded(Subscription subscription) {
+        subscription.refund();
+        subscriptionRepository.save(subscription);
+    }
 }

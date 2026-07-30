@@ -11,6 +11,7 @@ import com.keyfeed.keyfeedmonolithic.domain.payment.repository.PaymentMethodRepo
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.SubscriptionRepository;
 import com.keyfeed.keyfeedmonolithic.domain.payment.service.BillingExecutor;
 import com.keyfeed.keyfeedmonolithic.domain.payment.service.SubscriptionService;
+import com.keyfeed.keyfeedmonolithic.domain.payment.writer.PaymentHistoryWriter;
 import com.keyfeed.keyfeedmonolithic.domain.payment.writer.SubscriptionWriter;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.TossPaymentsClient;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.request.TossPaymentCancelRequest;
@@ -18,6 +19,7 @@ import com.keyfeed.keyfeedmonolithic.global.error.exception.EntityNotFoundExcept
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -36,9 +38,11 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private final TossPaymentsClient tossPaymentsClient;
     private final BillingExecutor billingExecutor;
     private final SubscriptionWriter subscriptionWriter;
+    private final PaymentHistoryWriter paymentHistoryWriter;
     private final KeywordService keywordService;
 
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public SubscriptionStartResponseDto startSubscription(Long userId, SubscriptionStartRequestDto request) {
         // 1. 사용자 조회 (토스 API 호출에 필요한 customerKey, email, name)
         User user = userRepository.findById(userId)
@@ -105,6 +109,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     }
 
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public SubscriptionResumeResponseDto resumeSubscription(Long userId, SubscriptionResumeRequestDto request) {
         // 1. PAUSED 상태의 구독이 있는지 검증
         Subscription subscription = subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.PAUSED)
@@ -128,7 +133,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public SubscriptionRefundResponseDto refundSubscription(Long userId) {
         // 1. ACTIVE 상태의 구독이 있는지 검증
         Subscription subscription = subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)
@@ -159,10 +164,10 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         }
 
         // 5. payment_history 상태 CANCELED로 업데이트
-        history.markCanceled();
+        paymentHistoryWriter.updateCanceled(history);
 
         // 6. subscription 상태 REFUNDED로 업데이트 (즉시 만료)
-        subscription.refund();
+        subscriptionWriter.updateRefunded(subscription);
 
         return SubscriptionRefundResponseDto.from(subscription);
     }

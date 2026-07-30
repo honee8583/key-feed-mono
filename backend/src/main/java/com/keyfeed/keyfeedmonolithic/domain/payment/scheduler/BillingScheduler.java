@@ -17,7 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -46,7 +45,6 @@ public class BillingScheduler {
      */
     @Scheduled(cron = "0 0 10 * * *")
     @SchedulerLock(name = "BillingScheduler_executeScheduledPayments", lockAtMostFor = "PT1H", lockAtLeastFor = "PT1M")
-    @Transactional // TODO 단일 트랜잭션으로 분리
     public void executeScheduledPayments() {
         log.info("[BillingScheduler] 자동 결제 시작");
 
@@ -146,21 +144,18 @@ public class BillingScheduler {
             );
 
             // 결제 성공: nextBillingAt +1달 갱신, retryCount 초기화
-            subscription.updateNextBillingAt(subscription.getNextBillingAt().plusMonths(1));
-            subscription.resetRetryCount();
+            subscriptionWriter.updateBillingSuccess(subscription);
 
             log.info("[BillingScheduler] 결제 성공 - subscriptionId: {}, userId: {}", subscription.getId(), userId);
 
         } catch (PaymentFailedException | InvalidPaymentMethodException e) {
-            // 카드 거부/만료 등 결제 실패: retryCount +1
-            subscription.increaseRetryCount();
+            // 카드 거부/만료 등 결제 실패: retryCount +1, 3회 도달 시 PAUSED 전환
+            subscriptionWriter.updateBillingFailure(subscription, MAX_RETRY_COUNT);
 
             log.warn("[BillingScheduler] 결제 실패 - subscriptionId: {}, retryCount: {}, reason: {}",
                     subscription.getId(), subscription.getRetryCount(), e.getMessage());
 
-            // retryCount >= 3이면 PAUSED 전환 + 알림 발송
-            if (subscription.getRetryCount() >= MAX_RETRY_COUNT) {
-                subscription.pause();
+            if (subscription.getStatus() == SubscriptionStatus.PAUSED) {
                 sendPaymentFailedNotification(userId);
                 log.warn("[BillingScheduler] 구독 PAUSED 전환 - subscriptionId: {}, userId: {}", subscription.getId(), userId);
             }
