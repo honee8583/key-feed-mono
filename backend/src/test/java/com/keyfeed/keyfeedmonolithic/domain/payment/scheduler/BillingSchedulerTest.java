@@ -69,15 +69,13 @@ class BillingSchedulerTest {
         given(billingExecutor.execute(any(), any(), eq(subscription), anyString(), anyInt()))
                 .willReturn(chargeResult);
 
-        LocalDateTime beforeBilling = subscription.getNextBillingAt();
-
         // when
         billingScheduler.executeScheduledPayments();
 
         // then
-        assertThat(subscription.getNextBillingAt()).isEqualTo(beforeBilling.plusMonths(1));
-        assertThat(subscription.getRetryCount()).isZero();
-        assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
+        then(subscriptionWriter).should().updateBillingSuccess(subscription);
+        then(subscriptionWriter).should(never()).updateBillingFailure(any(), anyInt());
+        then(notificationService).should(never()).send(any());
     }
 
     @Test
@@ -91,6 +89,10 @@ class BillingSchedulerTest {
                 .willReturn(List.of(subscription));
         given(billingExecutor.execute(any(), any(), eq(subscription), anyString(), anyInt()))
                 .willThrow(new PaymentFailedException());
+        willAnswer(invocation -> {
+            subscription.increaseRetryCount();
+            return null;
+        }).given(subscriptionWriter).updateBillingFailure(subscription, 3);
 
         // when
         billingScheduler.executeScheduledPayments();
@@ -98,6 +100,7 @@ class BillingSchedulerTest {
         // then
         assertThat(subscription.getRetryCount()).isEqualTo(2);
         assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
+        then(subscriptionWriter).should().updateBillingFailure(subscription, 3);
         then(notificationService).should(never()).send(any());
     }
 
@@ -112,6 +115,11 @@ class BillingSchedulerTest {
                 .willReturn(List.of(subscription));
         given(billingExecutor.execute(any(), any(), eq(subscription), anyString(), anyInt()))
                 .willThrow(new PaymentFailedException());
+        willAnswer(invocation -> {
+            subscription.increaseRetryCount();
+            subscription.pause();
+            return null;
+        }).given(subscriptionWriter).updateBillingFailure(subscription, 3);
 
         // when
         billingScheduler.executeScheduledPayments();
@@ -140,8 +148,8 @@ class BillingSchedulerTest {
         billingScheduler.executeScheduledPayments();
 
         // then
-        assertThat(subscription.getRetryCount()).isEqualTo(1);
-        assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
+        then(subscriptionWriter).should().updateBillingFailure(subscription, 3);
+        then(subscriptionWriter).should(never()).updateBillingSuccess(any());
     }
 
     @Test
@@ -179,8 +187,8 @@ class BillingSchedulerTest {
         billingScheduler.executeScheduledPayments();
 
         // then
-        assertThat(sub1.getRetryCount()).isEqualTo(1);
-        assertThat(sub2.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
+        then(subscriptionWriter).should().updateBillingFailure(sub1, 3);
+        then(subscriptionWriter).should().updateBillingSuccess(sub2);
         then(billingExecutor).should(times(2)).execute(any(), any(), any(), anyString(), anyInt());
     }
 
@@ -199,6 +207,7 @@ class BillingSchedulerTest {
         // when & then
         assertThatCode(() -> billingScheduler.executeScheduledPayments()).doesNotThrowAnyException();
         assertThat(subscription.getRetryCount()).isZero();
+        then(subscriptionWriter).shouldHaveNoInteractions();
     }
 
     // ===== recoverReadyPayments =====

@@ -199,6 +199,79 @@ class SubscriptionWriterTest {
         then(subscriptionRepository).should().save(subscription);
     }
 
+    // ===== updateBillingSuccess =====
+
+    @Test
+    @DisplayName("updateBillingSuccess - nextBillingAt이 1달 연장되고 retryCount가 초기화된다")
+    void updateBillingSuccess_결제일_연장_및_retryCount_초기화() {
+        // given
+        User user = makeUser(1L);
+        Subscription subscription = makeSubscription(user, SubscriptionStatus.ACTIVE);
+        subscription.increaseRetryCount();
+        LocalDateTime beforeBilling = subscription.getNextBillingAt();
+
+        // when
+        subscriptionWriter.updateBillingSuccess(subscription);
+
+        // then
+        assertThat(subscription.getNextBillingAt()).isEqualTo(beforeBilling.plusMonths(1));
+        assertThat(subscription.getRetryCount()).isZero();
+        then(subscriptionRepository).should().save(subscription);
+    }
+
+    // ===== updateBillingFailure =====
+
+    @Test
+    @DisplayName("updateBillingFailure - 한도 미만이면 retryCount만 증가하고 ACTIVE를 유지한다")
+    void updateBillingFailure_한도_미만_ACTIVE_유지() {
+        // given
+        User user = makeUser(1L);
+        Subscription subscription = makeSubscription(user, SubscriptionStatus.ACTIVE);
+
+        // when
+        subscriptionWriter.updateBillingFailure(subscription, 3);
+
+        // then
+        assertThat(subscription.getRetryCount()).isEqualTo(1);
+        assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
+        then(subscriptionRepository).should().save(subscription);
+    }
+
+    @Test
+    @DisplayName("updateBillingFailure - 한도 도달 시 PAUSED로 전환된다")
+    void updateBillingFailure_한도_도달_PAUSED_전환() {
+        // given
+        User user = makeUser(1L);
+        Subscription subscription = makeSubscription(user, SubscriptionStatus.ACTIVE);
+        subscription.increaseRetryCount();
+        subscription.increaseRetryCount();
+
+        // when
+        subscriptionWriter.updateBillingFailure(subscription, 3);
+
+        // then
+        assertThat(subscription.getRetryCount()).isEqualTo(3);
+        assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.PAUSED);
+        then(subscriptionRepository).should().save(subscription);
+    }
+
+    // ===== updateRefunded =====
+
+    @Test
+    @DisplayName("updateRefunded - REFUNDED 상태로 전환되어 저장된다")
+    void updateRefunded_REFUNDED_전환() {
+        // given
+        User user = makeUser(1L);
+        Subscription subscription = makeSubscription(user, SubscriptionStatus.ACTIVE);
+
+        // when
+        subscriptionWriter.updateRefunded(subscription);
+
+        // then
+        assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.REFUNDED);
+        then(subscriptionRepository).should().save(subscription);
+    }
+
     // ===== helpers =====
 
     private User makeUser(Long id) {

@@ -48,4 +48,10 @@ public class PaymentHistoryWriter {
         history.markFailed(reason);
         paymentHistoryRepository.save(history);
     }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void updateCanceled(PaymentHistory history) {
+        history.markCanceled();
+        paymentHistoryRepository.save(history);
+    }
 }
