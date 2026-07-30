@@ -20,6 +20,10 @@ spring:
           min-idle: 2          # 최소 유휴 커넥션 수
           max-wait: 1000ms     # 커넥션 대기 최대 시간
 
+  docker:
+    compose:
+      enabled: false           # 운영에서는 로컬 인프라 자동 기동 비활성
+
 jwt:
   secret: ${jwt_key}
   expiration_time: 1209600000
