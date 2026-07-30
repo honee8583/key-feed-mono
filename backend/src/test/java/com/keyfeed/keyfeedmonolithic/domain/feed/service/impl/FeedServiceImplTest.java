@@ -6,6 +6,7 @@ import com.keyfeed.keyfeedmonolithic.domain.content.dto.ContentFeedResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.content.entity.Content;
 import com.keyfeed.keyfeedmonolithic.domain.content.repository.ContentRepository;
 import com.keyfeed.keyfeedmonolithic.domain.search.service.RecentSearchService;
+import com.keyfeed.keyfeedmonolithic.domain.search.service.TrendingSearchService;
 import com.keyfeed.keyfeedmonolithic.domain.source.dto.SourceResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.source.service.SourceService;
 import com.keyfeed.keyfeedmonolithic.global.response.CommonPageResponse;
@@ -43,6 +44,9 @@ class FeedServiceImplTest {
 
     @Mock
     private RecentSearchService recentSearchService;
+
+    @Mock
+    private TrendingSearchService trendingSearchService;
 
     private SourceResponseDto buildSource(Long sourceId, String name, String logoUrl) {
         return SourceResponseDto.builder()
@@ -364,5 +368,74 @@ class FeedServiceImplTest {
 
         // then
         then(recentSearchService).should(never()).record(anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("키워드 검색 첫 페이지 조회 시 실시간 검색어 집계를 호출한다")
+    void 키워드_검색_첫_페이지_시_실시간_검색어_집계() {
+        // given
+        List<SourceResponseDto> sources = List.of(buildSource(1L, null, null));
+        List<Content> contents = List.of(buildContent(7L, 1L, "Blog"));
+
+        given(sourceService.getSourcesByUser(1L)).willReturn(sources);
+        given(contentRepository.searchFirstPage(anyList(), eq("spring"), any(Pageable.class))).willReturn(contents);
+        given(bookmarkService.getBookmarkInfoMap(anyLong(), anyList())).willReturn(Collections.emptyMap());
+
+        // when
+        feedService.getPersonalizedFeeds(1L, null, 10, "spring");
+
+        // then
+        then(trendingSearchService).should(times(1)).increment(1L, "spring");
+    }
+
+    @Test
+    @DisplayName("키워드 검색 다음 페이지 조회 시에는 실시간 검색어를 집계하지 않는다")
+    void 키워드_검색_다음_페이지_시_실시간_검색어_집계_안함() {
+        // given
+        List<SourceResponseDto> sources = List.of(buildSource(1L, null, null));
+        List<Content> contents = List.of(buildContent(3L, 1L, "Blog"));
+
+        given(sourceService.getSourcesByUser(1L)).willReturn(sources);
+        given(contentRepository.searchNextPage(anyList(), eq(20L), eq("java"), any(Pageable.class))).willReturn(contents);
+        given(bookmarkService.getBookmarkInfoMap(anyLong(), anyList())).willReturn(Collections.emptyMap());
+
+        // when
+        feedService.getPersonalizedFeeds(1L, 20L, 10, "java");
+
+        // then
+        then(trendingSearchService).should(never()).increment(anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("최근 검색어 저장이 실패해도 실시간 검색어 집계는 수행된다")
+    void 최근_검색어_저장_실패해도_실시간_검색어_집계_수행() {
+        // given
+        willThrow(new RuntimeException("Redis 연결 오류")).given(recentSearchService).record(1L, "spring");
+        given(sourceService.getSourcesByUser(1L)).willReturn(Collections.emptyList());
+
+        // when
+        feedService.getPersonalizedFeeds(1L, null, 10, "spring");
+
+        // then
+        then(trendingSearchService).should(times(1)).increment(1L, "spring");
+    }
+
+    @Test
+    @DisplayName("실시간 검색어 집계가 실패해도 피드는 정상 반환된다")
+    void 실시간_검색어_집계_실패해도_피드_정상_반환() {
+        // given
+        List<SourceResponseDto> sources = List.of(buildSource(1L, null, null));
+        List<Content> contents = List.of(buildContent(7L, 1L, "Blog"));
+
+        willThrow(new RuntimeException("Redis 연결 오류")).given(trendingSearchService).increment(1L, "spring");
+        given(sourceService.getSourcesByUser(1L)).willReturn(sources);
+        given(contentRepository.searchFirstPage(anyList(), eq("spring"), any(Pageable.class))).willReturn(contents);
+        given(bookmarkService.getBookmarkInfoMap(anyLong(), anyList())).willReturn(Collections.emptyMap());
+
+        // when
+        CommonPageResponse<ContentFeedResponseDto> result = feedService.getPersonalizedFeeds(1L, null, 10, "spring");
+
+        // then
+        assertThat(result.getContent()).hasSize(1);
     }
 }

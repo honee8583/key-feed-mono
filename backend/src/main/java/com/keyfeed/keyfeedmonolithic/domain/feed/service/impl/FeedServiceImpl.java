@@ -7,6 +7,7 @@ import com.keyfeed.keyfeedmonolithic.domain.content.entity.Content;
 import com.keyfeed.keyfeedmonolithic.domain.content.repository.ContentRepository;
 import com.keyfeed.keyfeedmonolithic.domain.feed.service.FeedService;
 import com.keyfeed.keyfeedmonolithic.domain.search.service.RecentSearchService;
+import com.keyfeed.keyfeedmonolithic.domain.search.service.TrendingSearchService;
 import com.keyfeed.keyfeedmonolithic.domain.source.dto.SourceResponseDto;
 import com.keyfeed.keyfeedmonolithic.domain.source.service.SourceService;
 import com.keyfeed.keyfeedmonolithic.global.response.CommonPageResponse;
@@ -32,11 +33,12 @@ public class FeedServiceImpl implements FeedService {
     private final BookmarkService bookmarkService;
     private final ContentRepository contentRepository;
     private final RecentSearchService recentSearchService;
+    private final TrendingSearchService trendingSearchService;
 
     @Override
     public CommonPageResponse<ContentFeedResponseDto> getPersonalizedFeeds(Long userId, Long lastId, int size, String keyword) {
         if (lastId == null) {
-            recordRecentSearch(userId, keyword);
+            recordSearchEvent(userId, keyword);
         }
 
         List<SourceResponseDto> userSources = sourceService.getSourcesByUser(userId);
@@ -77,7 +79,7 @@ public class FeedServiceImpl implements FeedService {
     @Override
     public OffsetPageResponse<ContentFeedResponseDto> getPersonalizedFeedsWithOffset(Long userId, int page, int size, String keyword) {
         if (page == 0) {
-            recordRecentSearch(userId, keyword);
+            recordSearchEvent(userId, keyword);
         }
 
         List<SourceResponseDto> userSources = sourceService.getSourcesByUser(userId);
@@ -117,7 +119,7 @@ public class FeedServiceImpl implements FeedService {
                 .build();
     }
 
-    private void recordRecentSearch(Long userId, String keyword) {
+    private void recordSearchEvent(Long userId, String keyword) {
         if (userId == null || !StringUtils.hasText(keyword)) {
             return;
         }
@@ -126,6 +128,12 @@ public class FeedServiceImpl implements FeedService {
             recentSearchService.record(userId, keyword);
         } catch (Exception e) {
             log.warn("최근 검색어 저장 실패 - 피드 조회는 계속 진행합니다. userId={}, keyword={}", userId, keyword, e);
+        }
+
+        try {
+            trendingSearchService.increment(userId, keyword);
+        } catch (Exception e) {
+            log.warn("실시간 검색어 집계 실패 - 피드 조회는 계속 진행합니다. userId={}, keyword={}", userId, keyword, e);
         }
     }
 
