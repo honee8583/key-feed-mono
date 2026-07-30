@@ -10,6 +10,7 @@ import com.keyfeed.keyfeedmonolithic.domain.payment.repository.PaymentHistoryRep
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.PaymentMethodRepository;
 import com.keyfeed.keyfeedmonolithic.domain.payment.repository.SubscriptionRepository;
 import com.keyfeed.keyfeedmonolithic.domain.payment.service.BillingExecutor;
+import com.keyfeed.keyfeedmonolithic.domain.payment.writer.PaymentHistoryWriter;
 import com.keyfeed.keyfeedmonolithic.domain.payment.writer.SubscriptionWriter;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.TossPaymentsClient;
 import com.keyfeed.keyfeedmonolithic.global.client.toss.dto.response.TossBillingChargeResponse;
@@ -54,6 +55,9 @@ class SubscriptionServiceImplTest {
 
     @Mock
     private SubscriptionWriter subscriptionWriter;
+
+    @Mock
+    private PaymentHistoryWriter paymentHistoryWriter;
 
     @Mock
     private KeywordService keywordService;
@@ -392,6 +396,10 @@ class SubscriptionServiceImplTest {
                 subscription.getId(), PaymentHistoryStatus.DONE))
                 .willReturn(Optional.of(history));
         willDoNothing().given(tossPaymentsClient).cancelPayment(anyString(), any());
+        willAnswer(invocation -> {
+            subscription.refund();
+            return null;
+        }).given(subscriptionWriter).updateRefunded(subscription);
 
         // when
         SubscriptionRefundResponseDto result = subscriptionService.refundSubscription(userId);
@@ -400,7 +408,8 @@ class SubscriptionServiceImplTest {
         assertThat(result.getStatus()).isEqualTo("REFUNDED");
         assertThat(result.getCanceledAt()).isNotNull();
         assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.REFUNDED);
-        assertThat(history.getStatus()).isEqualTo(PaymentHistoryStatus.CANCELED);
+        then(paymentHistoryWriter).should().updateCanceled(history);
+        then(subscriptionWriter).should().updateRefunded(subscription);
     }
 
     @Test

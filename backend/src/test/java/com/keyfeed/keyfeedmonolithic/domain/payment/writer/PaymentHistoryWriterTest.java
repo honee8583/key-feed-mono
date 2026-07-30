@@ -162,6 +162,22 @@ class PaymentHistoryWriterTest {
         then(paymentHistoryRepository).should().save(history);
     }
 
+    // ===== updateCanceled =====
+
+    @Test
+    @DisplayName("updateCanceled - 상태가 CANCELED로 변경되고 저장된다")
+    void updateCanceled_CANCELED_변경() {
+        // given
+        PaymentHistory history = makeHistory(PaymentHistoryStatus.DONE);
+
+        // when
+        paymentHistoryWriter.updateCanceled(history);
+
+        // then
+        assertThat(history.getStatus()).isEqualTo(PaymentHistoryStatus.CANCELED);
+        then(paymentHistoryRepository).should().save(history);
+    }
+
     // ===== helpers =====
 
     private User makeUser(Long id) {
