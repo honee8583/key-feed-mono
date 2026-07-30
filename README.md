@@ -63,10 +63,25 @@ cd backend
 ./gradlew bootRun --args='--spring.profiles.active=local'
 ```
 
+Docker가 실행 중이면 기동 시 `compose.yaml`의 MySQL/Redis 컨테이너가 자동으로 올라가고 접속 정보가 주입됩니다 (spring-boot-docker-compose). 앱 종료 시 컨테이너는 자동 정지되며 데이터는 볼륨에 유지됩니다. 직접 설치한 MySQL/Redis를 쓰려면 `spring.docker.compose.enabled=false`로 끄면 됩니다.
+
 로컬 기본 설정 (application-local.yml):
 - MySQL: `localhost:3306/test` (root / 1111)
 - Redis: `localhost:6379`
 - 서버 포트: `8080`
+
+### 모니터링 (선택)
+
+Prometheus + Grafana + Loki + Promtail 스택은 앱과 생명주기가 달라 별도 compose로 관리합니다:
+
+```bash
+cd backend
+cp .my.cnf.example .my.cnf   # mysqld-exporter용 (최초 1회)
+docker compose -f docker-compose.monitoring.yml up -d
+```
+
+- Grafana: `http://localhost:3000` (admin / admin)
+- Prometheus: `http://localhost:9090`
 
 ### Frontend
 
