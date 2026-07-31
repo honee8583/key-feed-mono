@@ -64,17 +64,11 @@ public class TossPaymentsClient {
                 .path(PATH_BILLING_ISSUE)
                 .build().toUri();
 
-        try {
-            TossBillingIssueResponse response = record("issueBillingKey",
-                    () -> exchange(uri, HttpMethod.POST, request, TossBillingIssueResponse.class));
-            log.info("[Toss] 빌링키 발급 성공 - customerKey: {}, billingKey: {}, elapsed: {}ms",
-                    request.getCustomerKey(), mask(response.getBillingKey()), elapsed(start));
-            return response;
-        } catch (Exception e) {
-            log.error("[Toss] 빌링키 발급 실패 - customerKey: {}, elapsed: {}ms, error: {}",
-                    request.getCustomerKey(), elapsed(start), e.getMessage());
-            throw e;
-        }
+        TossBillingIssueResponse response = record("issueBillingKey",
+                () -> exchange(uri, HttpMethod.POST, request, TossBillingIssueResponse.class));
+        log.info("[Toss] 빌링키 발급 성공 - customerKey: {}, billingKey: {}, elapsed: {}ms",
+                request.getCustomerKey(), mask(response.getBillingKey()), elapsed(start));
+        return response;
     }
 
     // 결제 실행: 발급된 빌링키로 구독 첫 결제 및 자동결제를 실행한다
@@ -88,17 +82,11 @@ public class TossPaymentsClient {
                 .buildAndExpand(billingKey)
                 .toUri();
 
-        try {
-            TossBillingChargeResponse response = record("chargeBilling",
-                    () -> exchange(uri, HttpMethod.POST, request, TossBillingChargeResponse.class));
-            log.info("[Toss] 결제 성공 - orderId: {}, paymentKey: {}, approvedAt: {}, elapsed: {}ms",
-                    request.getOrderId(), response.getPaymentKey(), response.getApprovedAt(), elapsed(start));
-            return response;
-        } catch (Exception e) {
-            log.error("[Toss] 결제 실패 - orderId: {}, amount: {}, elapsed: {}ms, error: {}",
-                    request.getOrderId(), request.getAmount(), elapsed(start), e.getMessage());
-            throw e;
-        }
+        TossBillingChargeResponse response = record("chargeBilling",
+                () -> exchange(uri, HttpMethod.POST, request, TossBillingChargeResponse.class));
+        log.info("[Toss] 결제 성공 - orderId: {}, paymentKey: {}, approvedAt: {}, elapsed: {}ms",
+                request.getOrderId(), response.getPaymentKey(), response.getApprovedAt(), elapsed(start));
+        return response;
     }
 
     // 결제 취소: 결제 건을 취소하고 환불을 처리한다
@@ -112,18 +100,12 @@ public class TossPaymentsClient {
                 .buildAndExpand(paymentKey)
                 .toUri();
 
-        try {
-            record("cancelPayment", () -> {
-                exchange(uri, HttpMethod.POST, request, Void.class);
-                return null;
-            });
-            log.info("[Toss] 결제 취소 성공 - paymentKey: {}, elapsed: {}ms",
-                    paymentKey, elapsed(start));
-        } catch (Exception e) {
-            log.error("[Toss] 결제 취소 실패 - paymentKey: {}, elapsed: {}ms, error: {}",
-                    paymentKey, elapsed(start), e.getMessage());
-            throw e;
-        }
+        record("cancelPayment", () -> {
+            exchange(uri, HttpMethod.POST, request, Void.class);
+            return null;
+        });
+        log.info("[Toss] 결제 취소 성공 - paymentKey: {}, elapsed: {}ms",
+                paymentKey, elapsed(start));
     }
 
     // 결제 조회: orderId로 결제 건의 실제 처리 상태를 조회한다 (서버 재시작 시 READY 복구용)
@@ -136,17 +118,11 @@ public class TossPaymentsClient {
                 .buildAndExpand(orderId)
                 .toUri();
 
-        try {
-            TossPaymentQueryResponse response = record("getPaymentByOrderId",
-                    () -> exchange(uri, HttpMethod.GET, null, TossPaymentQueryResponse.class));
-            log.info("[Toss] 결제 조회 성공 - orderId: {}, status: {}, elapsed: {}ms",
-                    orderId, response.getStatus(), elapsed(start));
-            return response;
-        } catch (Exception e) {
-            log.error("[Toss] 결제 조회 실패 - orderId: {}, elapsed: {}ms, error: {}",
-                    orderId, elapsed(start), e.getMessage());
-            throw e;
-        }
+        TossPaymentQueryResponse response = record("getPaymentByOrderId",
+                () -> exchange(uri, HttpMethod.GET, null, TossPaymentQueryResponse.class));
+        log.info("[Toss] 결제 조회 성공 - orderId: {}, status: {}, elapsed: {}ms",
+                orderId, response.getStatus(), elapsed(start));
+        return response;
     }
 
     // 빌링키 삭제: 사용자가 결제 수단을 삭제할 때 빌링키를 만료시킨다
@@ -159,18 +135,12 @@ public class TossPaymentsClient {
                 .buildAndExpand(billingKey)
                 .toUri();
 
-        try {
-            record("deleteBillingKey", () -> {
-                exchange(uri, HttpMethod.DELETE, null, Void.class);
-                return null;
-            });
-            log.info("[Toss] 빌링키 삭제 성공 - billingKey: {}, elapsed: {}ms",
-                    mask(billingKey), elapsed(start));
-        } catch (Exception e) {
-            log.error("[Toss] 빌링키 삭제 실패 - billingKey: {}, elapsed: {}ms, error: {}",
-                    mask(billingKey), elapsed(start), e.getMessage());
-            throw e;
-        }
+        record("deleteBillingKey", () -> {
+            exchange(uri, HttpMethod.DELETE, null, Void.class);
+            return null;
+        });
+        log.info("[Toss] 빌링키 삭제 성공 - billingKey: {}, elapsed: {}ms",
+                mask(billingKey), elapsed(start));
     }
 
     private <T> T exchange(URI uri, HttpMethod method, Object body, Class<T> responseType) {
@@ -179,10 +149,9 @@ public class TossPaymentsClient {
             return restTemplate.exchange(uri, method, entity, responseType).getBody();
         } catch (HttpClientErrorException e) {
             handleClientError(e);
-            throw new InternalApiRequestException("Toss API 호출 실패: " + e.getMessage());
+            throw new InternalApiRequestException("Toss API 호출 실패", e);
         } catch (ResourceAccessException e) {
-            log.error("Toss API 네트워크 오류: {}", e.getMessage());
-            throw new InternalApiRequestException("Toss API 네트워크 오류: " + e.getMessage());
+            throw new InternalApiRequestException("Toss API 네트워크 오류", e);
         }
     }
 

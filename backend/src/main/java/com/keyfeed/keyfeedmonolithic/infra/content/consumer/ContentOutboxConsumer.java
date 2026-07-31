@@ -58,7 +58,7 @@ public class ContentOutboxConsumer {
             return true;
         } catch (Exception e) {
             outbox.markFailed(e.getMessage());
-            log.error("[OutboxWorker] 발행 실패 - id: {}, retryCount: {}, error: {}", outbox.getId(), outbox.getRetryCount(), e.getMessage());
+            log.error("[OutboxWorker] 발행 실패 - id: {}, retryCount: {}", outbox.getId(), outbox.getRetryCount(), e);
 
             // 최대 재시도 초과 시 로그 저장
             if (outbox.isExhausted()) {

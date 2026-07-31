@@ -8,4 +8,8 @@ public class InternalApiRequestException extends CustomException {
         super(message, HttpStatus.SERVICE_UNAVAILABLE);
     }
 
+    public InternalApiRequestException(String message, Throwable cause) {
+        super(message, cause, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
 }

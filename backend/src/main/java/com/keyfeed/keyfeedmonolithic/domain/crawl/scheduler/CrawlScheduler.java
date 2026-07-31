@@ -48,7 +48,7 @@ public class CrawlScheduler {
                     try {
                         crawlService.processSource(source);
                     } catch (Exception e) {
-                        log.error("소스 크롤링 실패 (소스 ID: {}, URL: {}) ERROR : {}", source.getId(), source.getUrl(), e.getMessage());
+                        log.error("소스 크롤링 실패 (소스 ID: {}, URL: {})", source.getId(), source.getUrl(), e);
                     }
                 });
             }

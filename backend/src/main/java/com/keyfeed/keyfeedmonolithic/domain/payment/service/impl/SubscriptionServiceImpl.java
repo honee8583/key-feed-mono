@@ -159,7 +159,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                             .build()
             );
         } catch (Exception e) {
-            log.error("토스 환불 API 호출 실패: {}", e.getMessage());
+            log.error("토스 환불 API 호출 실패", e);
             throw new RefundFailedException();
         }
 

@@ -59,7 +59,7 @@ public class RssFeedValidator {
             return true;
 
         } catch (Exception e) {
-            log.error("RSS 피드 파싱 실패: {} - {}", feedUrl, e.getMessage());
+            log.error("RSS 피드 파싱 실패: {}", feedUrl, e);
             return false;
         }
     }
