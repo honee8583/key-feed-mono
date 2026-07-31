@@ -182,7 +182,7 @@ public class NotificationServiceImpl implements NotificationService {
                     .data(data));
         } catch (IOException e) {
             sseEmitterRepository.deleteById(emitterId);
-            log.error("SSE 연결 오류 발생 (Emitter 삭제)", e);
+            log.info("SSE 연결 종료로 emitter 제거 - emitterId: {} ({})", emitterId, e.toString());
         }
     }
 
