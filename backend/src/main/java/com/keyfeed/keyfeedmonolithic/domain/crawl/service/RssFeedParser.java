@@ -100,7 +100,7 @@ public class RssFeedParser {
                 items.add(new FeedItem(guid, title, link, cleanSummary, thumbnailUrl, pubDate));
             }
         } catch (Exception e) {
-            log.error("RSS 피드 파싱 실패: URL={}, 에러={}", feedUrl, e.getMessage());
+            log.error("RSS 피드 파싱 실패: URL={}", feedUrl, e);
         }
         return new ParsedFeedResult(logoUrl, items);
     }

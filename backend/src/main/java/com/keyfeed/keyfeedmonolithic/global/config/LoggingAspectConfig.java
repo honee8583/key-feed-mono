@@ -33,7 +33,7 @@ public class LoggingAspectConfig {
                     sig, shrink(ret), (System.nanoTime() - start) / 1_000_000);
             return ret;
         } catch (Throwable t) {
-            log.error("💥 Controller error {} msg={}", sig, t.getMessage(), t);
+            log.error("💥 Controller error {}", sig, t);
             throw t;
         }
     }

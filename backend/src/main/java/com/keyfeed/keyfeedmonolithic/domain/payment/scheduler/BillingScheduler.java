@@ -152,8 +152,8 @@ public class BillingScheduler {
             // 카드 거부/만료 등 결제 실패: retryCount +1, 3회 도달 시 PAUSED 전환
             subscriptionWriter.updateBillingFailure(subscription, MAX_RETRY_COUNT);
 
-            log.warn("[BillingScheduler] 결제 실패 - subscriptionId: {}, retryCount: {}, reason: {}",
-                    subscription.getId(), subscription.getRetryCount(), e.getMessage());
+            log.warn("[BillingScheduler] 결제 실패 - subscriptionId: {}, retryCount: {}",
+                    subscription.getId(), subscription.getRetryCount(), e);
 
             if (subscription.getStatus() == SubscriptionStatus.PAUSED) {
                 sendPaymentFailedNotification(userId);
@@ -161,7 +161,7 @@ public class BillingScheduler {
             }
         } catch (Exception e) {
             // 인프라/네트워크 오류: retryCount 증가 없이 로그만 기록
-            log.error("[BillingScheduler] 결제 중 예상 외 오류 - subscriptionId: {}, error: {}", subscription.getId(), e.getMessage());
+            log.error("[BillingScheduler] 결제 중 예상 외 오류 - subscriptionId: {}", subscription.getId(), e);
         }
     }
 
@@ -178,12 +178,12 @@ public class BillingScheduler {
                 log.info("[BillingScheduler] READY 복구(FAILED) - orderId: {}", history.getOrderId());
             }
         } catch (Exception e) {
-            log.error("[BillingScheduler] READY 복구 실패 - orderId: {}, error: {}", history.getOrderId(), e.getMessage());
+            log.error("[BillingScheduler] READY 복구 실패 - orderId: {}", history.getOrderId(), e);
             try {
                 paymentHistoryWriter.updateFailed(history, "복구 중 오류 발생: " + e.getMessage());
             } catch (Exception markFailedException) {
-                log.error("[BillingScheduler] READY 복구 FAILED 마킹 실패 - orderId: {}, error: {}",
-                        history.getOrderId(), markFailedException.getMessage());
+                log.error("[BillingScheduler] READY 복구 FAILED 마킹 실패 - orderId: {}",
+                        history.getOrderId(), markFailedException);
             }
         }
     }
@@ -196,7 +196,7 @@ public class BillingScheduler {
                     .message(PAYMENT_FAILED_ALERT_MESSAGE)
                     .build());
         } catch (Exception e) {
-            log.error("[BillingScheduler] 알림 발송 실패 - userId: {}, error: {}", userId, e.getMessage());
+            log.error("[BillingScheduler] 알림 발송 실패 - userId: {}", userId, e);
         }
     }
 

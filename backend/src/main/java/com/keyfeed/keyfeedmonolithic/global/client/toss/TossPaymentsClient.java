@@ -71,8 +71,8 @@ public class TossPaymentsClient {
                     request.getCustomerKey(), mask(response.getBillingKey()), elapsed(start));
             return response;
         } catch (Exception e) {
-            log.error("[Toss] 빌링키 발급 실패 - customerKey: {}, elapsed: {}ms, error: {}",
-                    request.getCustomerKey(), elapsed(start), e.getMessage());
+            log.error("[Toss] 빌링키 발급 실패 - customerKey: {}, elapsed: {}ms",
+                    request.getCustomerKey(), elapsed(start), e);
             throw e;
         }
     }
@@ -95,8 +95,8 @@ public class TossPaymentsClient {
                     request.getOrderId(), response.getPaymentKey(), response.getApprovedAt(), elapsed(start));
             return response;
         } catch (Exception e) {
-            log.error("[Toss] 결제 실패 - orderId: {}, amount: {}, elapsed: {}ms, error: {}",
-                    request.getOrderId(), request.getAmount(), elapsed(start), e.getMessage());
+            log.error("[Toss] 결제 실패 - orderId: {}, amount: {}, elapsed: {}ms",
+                    request.getOrderId(), request.getAmount(), elapsed(start), e);
             throw e;
         }
     }
@@ -120,8 +120,8 @@ public class TossPaymentsClient {
             log.info("[Toss] 결제 취소 성공 - paymentKey: {}, elapsed: {}ms",
                     paymentKey, elapsed(start));
         } catch (Exception e) {
-            log.error("[Toss] 결제 취소 실패 - paymentKey: {}, elapsed: {}ms, error: {}",
-                    paymentKey, elapsed(start), e.getMessage());
+            log.error("[Toss] 결제 취소 실패 - paymentKey: {}, elapsed: {}ms",
+                    paymentKey, elapsed(start), e);
             throw e;
         }
     }
@@ -143,8 +143,8 @@ public class TossPaymentsClient {
                     orderId, response.getStatus(), elapsed(start));
             return response;
         } catch (Exception e) {
-            log.error("[Toss] 결제 조회 실패 - orderId: {}, elapsed: {}ms, error: {}",
-                    orderId, elapsed(start), e.getMessage());
+            log.error("[Toss] 결제 조회 실패 - orderId: {}, elapsed: {}ms",
+                    orderId, elapsed(start), e);
             throw e;
         }
     }
@@ -167,8 +167,8 @@ public class TossPaymentsClient {
             log.info("[Toss] 빌링키 삭제 성공 - billingKey: {}, elapsed: {}ms",
                     mask(billingKey), elapsed(start));
         } catch (Exception e) {
-            log.error("[Toss] 빌링키 삭제 실패 - billingKey: {}, elapsed: {}ms, error: {}",
-                    mask(billingKey), elapsed(start), e.getMessage());
+            log.error("[Toss] 빌링키 삭제 실패 - billingKey: {}, elapsed: {}ms",
+                    mask(billingKey), elapsed(start), e);
             throw e;
         }
     }
@@ -181,7 +181,7 @@ public class TossPaymentsClient {
             handleClientError(e);
             throw new InternalApiRequestException("Toss API 호출 실패: " + e.getMessage());
         } catch (ResourceAccessException e) {
-            log.error("Toss API 네트워크 오류: {}", e.getMessage());
+            log.error("Toss API 네트워크 오류", e);
             throw new InternalApiRequestException("Toss API 네트워크 오류: " + e.getMessage());
         }
     }

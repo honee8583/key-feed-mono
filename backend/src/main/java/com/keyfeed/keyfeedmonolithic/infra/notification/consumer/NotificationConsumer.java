@@ -128,7 +128,7 @@ public class NotificationConsumer {
                             .add(keyword);
                 }
             } catch (Exception e) {
-                log.error("[NotificationConsumer] SSCAN 실패 - keyword: {}, error: {}", keyword, e.getMessage());
+                log.error("[NotificationConsumer] SSCAN 실패 - keyword: {}", keyword, e);
             }
         }
 
@@ -169,7 +169,7 @@ public class NotificationConsumer {
         try {
             return objectMapper.readValue(payload, ContentEventPayload.class);
         } catch (JsonProcessingException e) {
-            log.error("[NotificationConsumer] JSON 파싱 오류 - {}", e.getMessage());
+            log.error("[NotificationConsumer] JSON 파싱 오류", e);
             return null;
         }
     }
